@@ -2,10 +2,16 @@ package com.octavia.player.presentation.screens.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.octavia.player.data.model.*
+import com.octavia.player.data.model.PlaybackState
+import com.octavia.player.data.model.RepeatMode
+import com.octavia.player.data.model.ShuffleMode
+import com.octavia.player.data.model.Track
 import com.octavia.player.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,7 +22,7 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     private val mediaRepository: MediaRepository
 ) : ViewModel() {
-    
+
     val uiState: StateFlow<PlayerUiState> = combine(
         mediaRepository.playerState,
         mediaRepository.currentTrack,
@@ -39,33 +45,33 @@ class PlayerViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PlayerUiState()
     )
-    
+
     fun togglePlayPause() {
         mediaRepository.togglePlayPause()
     }
-    
+
     fun skipToNext() {
         viewModelScope.launch {
             mediaRepository.skipToNext()
         }
     }
-    
+
     fun skipToPrevious() {
         viewModelScope.launch {
             mediaRepository.skipToPrevious()
         }
     }
-    
+
     fun seekTo(position: Long) {
         mediaRepository.seekTo(position)
     }
-    
+
     fun toggleShuffle() {
         val currentShuffle = uiState.value.shuffleMode
         val newShuffle = if (currentShuffle == ShuffleMode.ON) ShuffleMode.OFF else ShuffleMode.ON
         mediaRepository.setShuffleMode(newShuffle)
     }
-    
+
     fun toggleRepeat() {
         val currentRepeat = uiState.value.repeatMode
         val newRepeat = when (currentRepeat) {
@@ -75,11 +81,11 @@ class PlayerViewModel @Inject constructor(
         }
         mediaRepository.setRepeatMode(newRepeat)
     }
-    
+
     fun setPlaybackSpeed(speed: Float) {
         mediaRepository.setPlaybackSpeed(speed)
     }
-    
+
     fun setVolume(volume: Float) {
         mediaRepository.setVolume(volume)
     }

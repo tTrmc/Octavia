@@ -7,7 +7,10 @@ import com.octavia.player.data.model.Track
 import com.octavia.player.data.repository.MediaRepository
 import com.octavia.player.data.repository.TrackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,57 +22,83 @@ class HomeViewModel @Inject constructor(
     private val trackRepository: TrackRepository,
     private val mediaRepository: MediaRepository
 ) : ViewModel() {
-    
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    
-    init {
-        loadHomeData()
-    }
-    
-    private fun loadHomeData() {
-        viewModelScope.launch {
-            // Combine multiple data sources
-            combine(
-                trackRepository.getRecentlyPlayedTracks(10),
-                trackRepository.getRecentlyAddedTracks(),
-                trackRepository.getFavoriteTracks(),
-                trackRepository.getHiResTracks()
-            ) { recentlyPlayed, recentlyAdded, favorites, hiRes ->
+
+    val uiState: StateFlow<HomeUiState> =
+        trackRepository.getAllTracks()
+            .combine(trackRepository.getRecentlyPlayedTracks(10)) { tracks, recentlyPlayed ->
+                tracks to recentlyPlayed
+            }
+            .combine(trackRepository.getRecentlyAddedTracks()) { (tracks, recentlyPlayed), recentlyAdded ->
+                Triple(tracks, recentlyPlayed, recentlyAdded)
+            }
+            .combine(trackRepository.getFavoriteTracks()) { (tracks, recentlyPlayed, recentlyAdded), favorites ->
+                listOf(tracks, recentlyPlayed, recentlyAdded, favorites)
+            }
+            .combine(trackRepository.getHiResTracks()) { trackLists, hiRes ->
+                trackLists + listOf(hiRes)
+            }
+            .combine(mediaRepository.currentTrack) { trackLists, currentTrack ->
+                trackLists to currentTrack
+            }
+            .combine(mediaRepository.playerState) { (trackLists, currentTrack), playerState ->
+                val (tracks, recentlyPlayed, recentlyAdded, favorites, hiRes) = trackLists
                 
-                // Get additional stats (suspend calls)
-                val trackCount = trackRepository.getTrackCount()
-                val totalDuration = trackRepository.getTotalDuration()
+                // Calculate stats from tracks
+                val albums = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
+                val artists = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
                 
                 HomeUiState(
                     recentlyPlayed = recentlyPlayed,
                     recentlyAdded = recentlyAdded.take(10),
                     favoriteTracksPreview = favorites.take(5),
                     hiResTracksPreview = hiRes.take(5),
-                    trackCount = trackCount,
-                    albumCount = 0, // TODO: Get from album repository
-                    artistCount = 0, // TODO: Get from artist repository
-                    totalDuration = formatDuration(totalDuration),
-                    recentlyAddedAlbums = emptyList() // TODO: Get from album repository
+                    recentlyAddedAlbums = emptyList(), // TODO: Implement album data
+                    currentlyPlayingTrack = currentTrack,
+                    isPlaying = playerState.isPlaying,
+                    trackCount = tracks.size,
+                    albumCount = albums,
+                    artistCount = artists,
+                    playlistCount = 0, // TODO: Implement playlists
+                    totalDuration = formatDuration(tracks.sumOf { it.durationMs })
                 )
-            }.collect { newState ->
-                _uiState.value = newState
-            }
-        }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = HomeUiState()
+            )
+
+    init {
+        // Stats will be loaded separately if needed
     }
-    
+
     fun playTrack(track: Track) {
         viewModelScope.launch {
             mediaRepository.playTrack(track)
         }
     }
-    
+
+    fun togglePlayPause() {
+        mediaRepository.togglePlayPause()
+    }
+
+    fun skipToNext() {
+        viewModelScope.launch {
+            mediaRepository.skipToNext()
+        }
+    }
+
+    fun skipToPrevious() {
+        viewModelScope.launch {
+            mediaRepository.skipToPrevious()
+        }
+    }
+
     private fun formatDuration(durationMs: Long): String {
         val totalSeconds = durationMs / 1000
         val days = totalSeconds / (24 * 3600)
         val hours = (totalSeconds % (24 * 3600)) / 3600
         val minutes = (totalSeconds % 3600) / 60
-        
+
         return when {
             days > 0 -> "${days}d ${hours}h"
             hours > 0 -> "${hours}h ${minutes}m"
@@ -87,9 +116,12 @@ data class HomeUiState(
     val favoriteTracksPreview: List<Track> = emptyList(),
     val hiResTracksPreview: List<Track> = emptyList(),
     val recentlyAddedAlbums: List<Album> = emptyList(),
+    val currentlyPlayingTrack: Track? = null,
+    val isPlaying: Boolean = false,
     val trackCount: Int = 0,
     val albumCount: Int = 0,
     val artistCount: Int = 0,
+    val playlistCount: Int = 0,
     val totalDuration: String = "",
     val isLoading: Boolean = false,
     val error: String? = null

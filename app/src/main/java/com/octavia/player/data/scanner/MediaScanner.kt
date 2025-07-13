@@ -64,22 +64,40 @@ object MediaScanner {
     private fun createTrackFromCursor(context: Context, cursor: Cursor): Track? {
         return try {
             val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-            val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)) ?: ""
-            val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)) ?: displayName
-            val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)) ?: "Unknown Artist"
-            val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)) ?: "Unknown Album"
-            val albumId = cursor.getLongOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))
-            val artistId = cursor.getLongOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST_ID))
+            val displayName =
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
+                    ?: ""
+            val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE))
+                ?: displayName
+            val artist =
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST))
+                    ?: "Unknown Artist"
+            val album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM))
+                ?: "Unknown Album"
+            val albumId =
+                cursor.getLongOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))
+            val artistId =
+                cursor.getLongOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST_ID))
             val genre = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE))
-            val trackNumber = cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK))
-            val year = cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR))
-            val duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
+            val trackNumber =
+                cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK))
+            val year =
+                cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR))
+            val duration =
+                cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
             val fileSize = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE))
-            val filePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)) ?: return null
-            val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)) * 1000 // Convert to milliseconds
-            val lastModified = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)) * 1000
-            val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)) ?: ""
-            val bitrate = cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BITRATE))
+            val filePath =
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))
+                    ?: return null
+            val dateAdded =
+                cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)) * 1000 // Convert to milliseconds
+            val lastModified =
+                cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)) * 1000
+            val mimeType =
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE))
+                    ?: ""
+            val bitrate =
+                cursor.getIntOrNull(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.BITRATE))
 
             // Determine if it's lossless based on mime type
             val isLossless = when {

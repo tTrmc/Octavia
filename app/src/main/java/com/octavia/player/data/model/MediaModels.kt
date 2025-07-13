@@ -23,36 +23,36 @@ import kotlinx.serialization.Serializable
 data class Album(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    
+
     val name: String,
     val artist: String? = null,
     @ColumnInfo(name = "artist_id")
     val artistId: Long? = null,
-    
+
     val year: Int? = null,
     @ColumnInfo(name = "track_count")
     val trackCount: Int = 0,
     @ColumnInfo(name = "total_duration_ms")
     val totalDurationMs: Long = 0L,
-    
+
     @ColumnInfo(name = "artwork_path")
     val artworkPath: String? = null,
     @ColumnInfo(name = "date_added")
     val dateAdded: Long = System.currentTimeMillis()
 ) : Parcelable {
-    
+
     val displayName: String
         get() = name.takeIf { it.isNotBlank() } ?: "Unknown Album"
-    
+
     val displayArtist: String
         get() = artist?.takeIf { it.isNotBlank() } ?: "Unknown Artist"
-    
+
     val formattedDuration: String
         get() {
             val totalSeconds = totalDurationMs / 1000
             val hours = totalSeconds / 3600
             val minutes = (totalSeconds % 3600) / 60
-            
+
             return if (hours > 0) {
                 String.format("%d:%02d hours", hours, minutes)
             } else {
@@ -73,19 +73,19 @@ data class Album(
 data class Artist(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    
+
     val name: String,
     @ColumnInfo(name = "album_count")
     val albumCount: Int = 0,
     @ColumnInfo(name = "track_count")
     val trackCount: Int = 0,
-    
+
     @ColumnInfo(name = "artwork_path")
     val artworkPath: String? = null,
     @ColumnInfo(name = "date_added")
     val dateAdded: Long = System.currentTimeMillis()
 ) : Parcelable {
-    
+
     val displayName: String
         get() = name.takeIf { it.isNotBlank() } ?: "Unknown Artist"
 }
@@ -102,15 +102,15 @@ data class Artist(
 data class Genre(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    
+
     val name: String,
     @ColumnInfo(name = "track_count")
     val trackCount: Int = 0,
-    
+
     @ColumnInfo(name = "date_added")
     val dateAdded: Long = System.currentTimeMillis()
 ) : Parcelable {
-    
+
     val displayName: String
         get() = name.takeIf { it.isNotBlank() } ?: "Unknown Genre"
 }
@@ -127,14 +127,14 @@ data class Genre(
 data class Playlist(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    
+
     val name: String,
     val description: String? = null,
     @ColumnInfo(name = "track_count")
     val trackCount: Int = 0,
     @ColumnInfo(name = "total_duration_ms")
     val totalDurationMs: Long = 0L,
-    
+
     @ColumnInfo(name = "artwork_path")
     val artworkPath: String? = null,
     @ColumnInfo(name = "date_created")
@@ -142,16 +142,16 @@ data class Playlist(
     @ColumnInfo(name = "date_modified")
     val dateModified: Long = System.currentTimeMillis()
 ) : Parcelable {
-    
+
     val displayName: String
         get() = name.takeIf { it.isNotBlank() } ?: "Unnamed Playlist"
-    
+
     val formattedDuration: String
         get() {
             val totalSeconds = totalDurationMs / 1000
             val hours = totalSeconds / 3600
             val minutes = (totalSeconds % 3600) / 60
-            
+
             return if (hours > 0) {
                 String.format("%d:%02d hours", hours, minutes)
             } else {

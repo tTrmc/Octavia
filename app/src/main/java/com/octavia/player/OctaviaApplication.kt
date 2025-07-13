@@ -21,10 +21,4 @@ class OctaviaApplication : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .build()
 
-    override fun onCreate() {
-        super.onCreate()
-        
-        // Initialize any other required components here
-        // For example: Crash reporting, analytics, etc.
-    }
 }

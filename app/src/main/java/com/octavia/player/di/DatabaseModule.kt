@@ -3,7 +3,11 @@ package com.octavia.player.di
 import android.content.Context
 import androidx.room.Room
 import com.octavia.player.data.database.OctaviaDatabase
-import com.octavia.player.data.database.dao.*
+import com.octavia.player.data.database.dao.AlbumDao
+import com.octavia.player.data.database.dao.ArtistDao
+import com.octavia.player.data.database.dao.GenreDao
+import com.octavia.player.data.database.dao.PlaylistDao
+import com.octavia.player.data.database.dao.TrackDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,7 +21,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-    
+
     @Provides
     @Singleton
     fun provideOctaviaDatabase(@ApplicationContext context: Context): OctaviaDatabase {
@@ -30,22 +34,22 @@ object DatabaseModule {
                 // Add migrations here as database evolves
                 OctaviaDatabase.MIGRATION_1_2
             )
-            .fallbackToDestructiveMigration() // Only for development - remove for production
+            .fallbackToDestructiveMigration(false) // Only for development - remove for production
             .build()
     }
-    
+
     @Provides
     fun provideTrackDao(database: OctaviaDatabase): TrackDao = database.trackDao()
-    
+
     @Provides
     fun provideAlbumDao(database: OctaviaDatabase): AlbumDao = database.albumDao()
-    
+
     @Provides
     fun provideArtistDao(database: OctaviaDatabase): ArtistDao = database.artistDao()
-    
+
     @Provides
     fun provideGenreDao(database: OctaviaDatabase): GenreDao = database.genreDao()
-    
+
     @Provides
     fun providePlaylistDao(database: OctaviaDatabase): PlaylistDao = database.playlistDao()
 }

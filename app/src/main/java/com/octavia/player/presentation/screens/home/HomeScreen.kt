@@ -1,26 +1,56 @@
 package com.octavia.player.presentation.screens.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.octavia.player.presentation.components.AlbumCard
+import com.octavia.player.presentation.components.MiniPlayer
 import com.octavia.player.presentation.components.TrackItem
 
 /**
@@ -36,13 +66,13 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = { 
+            TopAppBar(
+                title = {
                     Text(
-                        "Good evening",
+                        "Octavia",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -50,83 +80,80 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = onNavigateToSearch) {
                         Icon(
-                            Icons.Default.Search, 
+                            Icons.Default.Search,
                             contentDescription = "Search",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
-                            Icons.Default.Settings, 
+                            Icons.Default.Settings,
                             contentDescription = "Settings",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            ) {
-                NavigationBarItem(
-                    icon = { 
-                        Icon(
-                            Icons.Default.Home, 
-                            contentDescription = "Home",
-                            modifier = Modifier.size(24.dp)
-                        ) 
-                    },
-                    label = { Text("Home", style = MaterialTheme.typography.labelSmall) },
-                    selected = true,
-                    onClick = { /* Already on home */ },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Column {
+                // MiniPlayer - show when a track is playing
+                if (uiState.currentlyPlayingTrack != null) {
+                    MiniPlayer(
+                        track = uiState.currentlyPlayingTrack,
+                        isPlaying = uiState.isPlaying,
+                        onPlayPause = { viewModel.togglePlayPause() },
+                        onNext = { viewModel.skipToNext() },
+                        onPrevious = { viewModel.skipToPrevious() },
+                        onClick = onNavigateToPlayer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                )
-                NavigationBarItem(
-                    icon = { 
-                        Icon(
-                            Icons.Default.LibraryMusic, 
-                            contentDescription = "Library",
-                            modifier = Modifier.size(24.dp)
-                        ) 
-                    },
-                    label = { Text("Library", style = MaterialTheme.typography.labelSmall) },
-                    selected = false,
-                    onClick = onNavigateToLibrary,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.surfaceContainer
+                ) {
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = "Home",
+                                modifier = Modifier.size(26.dp)
+                            )
+                        },
+                        label = { Text("Home", style = MaterialTheme.typography.labelMedium) },
+                        selected = true,
+                        onClick = { /* Already on home */ },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
-                )
-                NavigationBarItem(
-                    icon = { 
-                        Icon(
-                            Icons.Default.PlayArrow, 
-                            contentDescription = "Now Playing",
-                            modifier = Modifier.size(24.dp)
-                        ) 
-                    },
-                    label = { Text("Now Playing", style = MaterialTheme.typography.labelSmall) },
-                    selected = false,
-                    onClick = onNavigateToPlayer,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.LibraryMusic,
+                                contentDescription = "Library",
+                                modifier = Modifier.size(26.dp)
+                            )
+                        },
+                        label = { Text("Library", style = MaterialTheme.typography.labelMedium) },
+                        selected = false,
+                        onClick = onNavigateToLibrary,
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
-                )
+                }
             }
         }
     ) { paddingValues ->
@@ -134,14 +161,22 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Quick access tiles - Spotify-style
-            item {
-                QuickAccessSection(onNavigateToLibrary = onNavigateToLibrary)
+            // Library Stats Card
+            if (uiState.trackCount > 0) {
+                item {
+                    LibraryStatsCard(
+                        trackCount = uiState.trackCount,
+                        albumCount = uiState.albumCount,
+                        artistCount = uiState.artistCount,
+                        playlistCount = uiState.playlistCount,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                }
             }
-            
+
             // Recently played
             if (uiState.recentlyPlayed.isNotEmpty()) {
                 item {
@@ -150,17 +185,18 @@ fun HomeScreen(
                         onSeeAllClick = onNavigateToLibrary
                     )
                 }
-                
+
                 items(uiState.recentlyPlayed.take(6)) { track ->
                     TrackItem(
                         track = track,
                         onClick = { viewModel.playTrack(track) },
                         showQuality = true,
-                        showFavoriteIcon = false
+                        showFavoriteIcon = false,
+                        isPlaying = uiState.currentlyPlayingTrack?.id == track.id
                     )
                 }
             }
-            
+
             // Made for you section
             if (uiState.recentlyAddedAlbums.isNotEmpty()) {
                 item {
@@ -169,12 +205,12 @@ fun HomeScreen(
                         onSeeAllClick = onNavigateToLibrary
                     )
                 }
-                
+
                 // Albums horizontal scroll
                 item {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(uiState.recentlyAddedAlbums) { album ->
                             AlbumCard(
@@ -185,7 +221,7 @@ fun HomeScreen(
                     }
                 }
             }
-            
+
             // Recently added
             if (uiState.recentlyAdded.isNotEmpty()) {
                 item {
@@ -196,8 +232,8 @@ fun HomeScreen(
                 }
                 item {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp)
                     ) {
                         items(uiState.recentlyAddedAlbums.take(10)) { album ->
                             AlbumCard(
@@ -208,7 +244,7 @@ fun HomeScreen(
                     }
                 }
             }
-            
+
             // Favorites
             if (uiState.favoriteTracksPreview.isNotEmpty()) {
                 item {
@@ -217,15 +253,17 @@ fun HomeScreen(
                         onSeeAllClick = onNavigateToLibrary
                     )
                 }
+
                 items(uiState.favoriteTracksPreview.take(5)) { track ->
                     TrackItem(
                         track = track,
                         onClick = { viewModel.playTrack(track) },
-                        showFavoriteIcon = true
+                        showFavoriteIcon = true,
+                        isPlaying = uiState.currentlyPlayingTrack?.id == track.id
                     )
                 }
             }
-            
+
             // Hi-Res tracks
             if (uiState.hiResTracksPreview.isNotEmpty()) {
                 item {
@@ -239,100 +277,11 @@ fun HomeScreen(
                     TrackItem(
                         track = track,
                         onClick = { viewModel.playTrack(track) },
-                        showQuality = true
+                        showQuality = true,
+                        isPlaying = uiState.currentlyPlayingTrack?.id == track.id
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun QuickAccessSection(onNavigateToLibrary: () -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp)
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(4) { index ->
-            val (title, icon, backgroundColor, iconColor) = when (index) {
-                0 -> Quadruple(
-                    "Liked Songs",
-                    Icons.Default.Favorite,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    MaterialTheme.colorScheme.primary
-                )
-                1 -> Quadruple(
-                    "Recently Played",
-                    Icons.Default.History,
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                    MaterialTheme.colorScheme.secondary
-                )
-                2 -> Quadruple(
-                    "Hi-Res Audio",
-                    Icons.Default.HighQuality,
-                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
-                    MaterialTheme.colorScheme.tertiary
-                )
-                else -> Quadruple(
-                    "Downloaded",
-                    Icons.Default.Download,
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    MaterialTheme.colorScheme.onSurface
-                )
-            }
-            
-            QuickAccessTile(
-                title = title,
-                icon = icon,
-                backgroundColor = backgroundColor,
-                iconColor = iconColor,
-                onClick = onNavigateToLibrary
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickAccessTile(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    backgroundColor: androidx.compose.ui.graphics.Color,
-    iconColor: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        color = backgroundColor
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
@@ -342,44 +291,44 @@ private fun QuickStatsCard(
     trackCount: Int,
     albumCount: Int,
     artistCount: Int,
-    totalDuration: String
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text(
-                text = "Your Library",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            QuickStatItem(
+                value = trackCount.toString(),
+                label = "Songs"
             )
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatItem(label = "Tracks", value = trackCount.toString())
-                StatItem(label = "Albums", value = albumCount.toString())
-                StatItem(label = "Artists", value = artistCount.toString())
-            }
-            
-            if (totalDuration.isNotBlank()) {
-                Text(
-                    text = "Total playtime: $totalDuration",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            QuickStatItem(
+                value = albumCount.toString(),
+                label = "Albums"
+            )
+            QuickStatItem(
+                value = artistCount.toString(),
+                label = "Artists"
+            )
         }
     }
 }
 
 @Composable
-private fun StatItem(label: String, value: String) {
+private fun QuickStatItem(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
     Column(
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -402,7 +351,9 @@ private fun SectionHeader(
     onSeeAllClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -420,17 +371,85 @@ private fun SectionHeader(
                 )
             }
         }
-        
+
         TextButton(onClick = onSeeAllClick) {
             Text("See All")
         }
     }
 }
 
-// Helper data class for multiple values
-private data class Quadruple<A, B, C, D>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D
-)
+@Composable
+private fun LibraryStatsCard(
+    trackCount: Int,
+    albumCount: Int,
+    artistCount: Int,
+    playlistCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            StatItem(
+                count = trackCount,
+                label = "Songs",
+                icon = Icons.Default.MusicNote
+            )
+            StatItem(
+                count = albumCount,
+                label = "Albums",
+                icon = Icons.Default.Album
+            )
+            StatItem(
+                count = artistCount,
+                label = "Artists",
+                icon = Icons.Default.Person
+            )
+            StatItem(
+                count = playlistCount,
+                label = "Playlists",
+                icon = Icons.AutoMirrored.Filled.PlaylistPlay
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatItem(
+    count: Int,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

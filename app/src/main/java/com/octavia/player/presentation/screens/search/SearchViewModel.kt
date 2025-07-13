@@ -6,7 +6,9 @@ import com.octavia.player.data.model.Track
 import com.octavia.player.data.repository.MediaRepository
 import com.octavia.player.data.repository.TrackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,18 +20,18 @@ class SearchViewModel @Inject constructor(
     private val trackRepository: TrackRepository,
     private val mediaRepository: MediaRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
-    
+
     fun search(query: String) {
         if (query.trim().isEmpty()) {
             _uiState.value = SearchUiState()
             return
         }
-        
+
         _uiState.value = _uiState.value.copy(isLoading = true)
-        
+
         viewModelScope.launch {
             trackRepository.searchTracks(query.trim()).collect { results ->
                 _uiState.value = SearchUiState(
@@ -40,11 +42,11 @@ class SearchViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun clearSearch() {
         _uiState.value = SearchUiState()
     }
-    
+
     fun playTrack(track: Track) {
         viewModelScope.launch {
             mediaRepository.playTrack(track)

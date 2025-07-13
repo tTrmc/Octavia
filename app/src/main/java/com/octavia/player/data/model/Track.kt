@@ -25,22 +25,22 @@ import kotlinx.serialization.Serializable
 data class Track(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    
+
     @ColumnInfo(name = "file_path")
     val filePath: String,
-    
+
     @ColumnInfo(name = "file_name")
     val fileName: String,
-    
+
     @ColumnInfo(name = "file_size")
     val fileSize: Long,
-    
+
     @ColumnInfo(name = "last_modified")
     val lastModified: Long,
-    
+
     @ColumnInfo(name = "file_hash")
     val fileHash: String? = null,
-    
+
     // Metadata
     val title: String,
     val artist: String? = null,
@@ -53,7 +53,7 @@ data class Track(
     val trackNumber: Int? = null,
     @ColumnInfo(name = "disc_number")
     val discNumber: Int? = null,
-    
+
     // Audio properties
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long,
@@ -69,7 +69,7 @@ data class Track(
     val codecName: String? = null,
     @ColumnInfo(name = "is_lossless")
     val isLossless: Boolean = false,
-    
+
     // ReplayGain
     @ColumnInfo(name = "replay_gain_track")
     val replayGainTrack: Float? = null,
@@ -77,11 +77,11 @@ data class Track(
     val replayGainAlbum: Float? = null,
     @ColumnInfo(name = "replay_gain_peak")
     val replayGainPeak: Float? = null,
-    
+
     // Artwork
     @ColumnInfo(name = "artwork_path")
     val artworkPath: String? = null,
-    
+
     // Relationships
     @ColumnInfo(name = "album_id")
     val albumId: Long? = null,
@@ -89,7 +89,7 @@ data class Track(
     val artistId: Long? = null,
     @ColumnInfo(name = "genre_id")
     val genreId: Long? = null,
-    
+
     // Playback statistics
     @ColumnInfo(name = "play_count")
     val playCount: Int = 0,
@@ -97,32 +97,32 @@ data class Track(
     val lastPlayed: Long? = null,
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Boolean = false,
-    
+
     // Scanner metadata
     @ColumnInfo(name = "date_added")
     val dateAdded: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "date_scanned")
     val dateScanned: Long = System.currentTimeMillis()
 ) : Parcelable {
-    
+
     /**
      * Gets the display title, falling back to filename if title is empty
      */
     val displayTitle: String
         get() = title.takeIf { it.isNotBlank() } ?: fileName.substringBeforeLast('.')
-    
+
     /**
      * Gets the display artist, falling back to "Unknown Artist" if empty
      */
     val displayArtist: String
         get() = artist?.takeIf { it.isNotBlank() } ?: "Unknown Artist"
-    
+
     /**
      * Gets the display album, falling back to "Unknown Album" if empty
      */
     val displayAlbum: String
         get() = album?.takeIf { it.isNotBlank() } ?: "Unknown Album"
-    
+
     /**
      * Formats duration in mm:ss or h:mm:ss format
      */
@@ -132,26 +132,26 @@ data class Track(
             val hours = totalSeconds / 3600
             val minutes = (totalSeconds % 3600) / 60
             val seconds = totalSeconds % 60
-            
+
             return if (hours > 0) {
                 String.format("%d:%02d:%02d", hours, minutes, seconds)
             } else {
                 String.format("%d:%02d", minutes, seconds)
             }
         }
-    
+
     /**
      * Gets a quality description based on audio properties
      */
     val qualityDescription: String
         get() = buildString {
             codecName?.let { append(it.uppercase()) }
-            
+
             if (isLossless) {
                 if (isNotEmpty()) append(" • ")
                 append("Lossless")
             }
-            
+
             sampleRateHz?.let { rate ->
                 if (isNotEmpty()) append(" • ")
                 when {
@@ -162,7 +162,7 @@ data class Track(
                     else -> append("${rate / 1000} kHz")
                 }
             }
-            
+
             bitDepth?.let { depth ->
                 if (isNotEmpty()) append(" • ")
                 append("${depth}-bit")

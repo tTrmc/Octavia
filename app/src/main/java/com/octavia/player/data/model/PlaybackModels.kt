@@ -65,16 +65,16 @@ data class PlaybackQueue(
 ) {
     val currentTrack: Track?
         get() = tracks.getOrNull(currentIndex)
-    
+
     val hasNext: Boolean
         get() = currentIndex < tracks.size - 1
-    
+
     val hasPrevious: Boolean
         get() = currentIndex > 0
-    
+
     val isEmpty: Boolean
         get() = tracks.isEmpty()
-    
+
     val size: Int
         get() = tracks.size
 }

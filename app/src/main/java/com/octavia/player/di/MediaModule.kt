@@ -6,8 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.LoadControl
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.trackselection.TrackSelector
@@ -24,7 +24,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object MediaModule {
-    
+
     @Provides
     @Singleton
     fun provideAudioAttributes(): AudioAttributes {
@@ -33,7 +33,7 @@ object MediaModule {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
     }
-    
+
     @Provides
     @Singleton
     fun provideAudioSink(@ApplicationContext context: Context): AudioSink {
@@ -47,13 +47,13 @@ object MediaModule {
             )
             .build()
     }
-    
+
     @Provides
     @Singleton
     fun provideTrackSelector(@ApplicationContext context: Context): TrackSelector {
         return DefaultTrackSelector(context, AdaptiveTrackSelection.Factory())
     }
-    
+
     @Provides
     @Singleton
     fun provideLoadControl(): LoadControl {
@@ -68,7 +68,7 @@ object MediaModule {
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
     }
-    
+
     @Provides
     @Singleton
     fun provideExoPlayer(

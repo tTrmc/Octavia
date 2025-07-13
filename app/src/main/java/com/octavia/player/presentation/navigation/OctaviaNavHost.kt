@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-// import com.octavia.player.presentation.screens.home.HomeScreen
 import com.octavia.player.presentation.screens.home.HomeScreen
 import com.octavia.player.presentation.screens.library.LibraryScreen
 import com.octavia.player.presentation.screens.player.PlayerScreen
@@ -31,7 +30,7 @@ object Routes {
 @Composable
 fun OctaviaNavHost() {
     val navController = rememberNavController()
-    
+
     NavHost(
         navController = navController,
         startDestination = Routes.HOME
@@ -44,40 +43,41 @@ fun OctaviaNavHost() {
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
             )
         }
-        
+
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToAlbum = { albumId -> 
-                    navController.navigate("album_detail/$albumId") 
+                onNavigateToAlbum = { albumId ->
+                    navController.navigate("album_detail/$albumId")
                 },
-                onNavigateToArtist = { artistId -> 
-                    navController.navigate("artist_detail/$artistId") 
+                onNavigateToArtist = { artistId ->
+                    navController.navigate("artist_detail/$artistId")
                 },
-                onNavigateToPlaylist = { playlistId -> 
-                    navController.navigate("playlist_detail/$playlistId") 
-                }
+                onNavigateToPlaylist = { playlistId ->
+                    navController.navigate("playlist_detail/$playlistId")
+                },
+                onNavigateToPlayer = { navController.navigate(Routes.PLAYER) }
             )
         }
-        
+
         composable(Routes.SEARCH) {
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         composable(Routes.PLAYER) {
             PlayerScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         // Detail screens
         composable("album_detail/{albumId}") { backStackEntry ->
             val albumId = backStackEntry.arguments?.getString("albumId")?.toLongOrNull() ?: 0L
@@ -86,7 +86,7 @@ fun OctaviaNavHost() {
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         composable("artist_detail/{artistId}") { backStackEntry ->
             val artistId = backStackEntry.arguments?.getString("artistId")?.toLongOrNull() ?: 0L
             ArtistDetailScreen(
@@ -94,7 +94,7 @@ fun OctaviaNavHost() {
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        
+
         composable("playlist_detail/{playlistId}") { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
             PlaylistDetailScreen(
