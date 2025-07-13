@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Include user preferences and playlists -->
+    <include domain="sharedpref" path="."/>
+    <include domain="database" path="octavia_database"/>
+    
+    <!-- Exclude cache and temporary files -->
+    <exclude domain="cache" path="."/>
+    <exclude domain="no_backup" path="."/>
+</full-backup-content>

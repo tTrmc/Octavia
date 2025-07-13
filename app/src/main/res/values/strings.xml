@@ -1,0 +1,119 @@
+<resources>
+    <string name="app_name">Octavia</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_now_playing">Now Playing</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Player -->
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Repeat</string>
+    <string name="favorite">Favorite</string>
+    <string name="unfavorite">Remove from favorites</string>
+    
+    <!-- Library -->
+    <string name="tracks">Tracks</string>
+    <string name="albums">Albums</string>
+    <string name="artists">Artists</string>
+    <string name="playlists">Playlists</string>
+    <string name="genres">Genres</string>
+    
+    <!-- Search -->
+    <string name="search_hint">Search tracks, albums, artists…</string>
+    <string name="no_results">No results found</string>
+    <string name="no_results_for">No results found for "%1$s"</string>
+    
+    <!-- Audio Quality -->
+    <string name="lossless">Lossless</string>
+    <string name="hi_res">Hi-Res</string>
+    <string name="codec_flac">FLAC</string>
+    <string name="codec_alac">ALAC</string>
+    <string name="codec_wav">WAV</string>
+    <string name="codec_mp3">MP3</string>
+    <string name="codec_ogg">OGG</string>
+    <string name="codec_m4a">M4A</string>
+    
+    <!-- Time -->
+    <string name="unknown_duration">Unknown duration</string>
+    <string name="total_playtime">Total playtime: %1$s</string>
+    
+    <!-- Settings -->
+    <string name="settings_audio">Audio</string>
+    <string name="settings_library">Library</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_about">About</string>
+    
+    <string name="audio_quality">Audio Quality</string>
+    <string name="audio_quality_subtitle">High-resolution audio settings</string>
+    <string name="equalizer">Equalizer</string>
+    <string name="equalizer_subtitle">Customize audio frequencies</string>
+    <string name="replaygain">ReplayGain</string>
+    <string name="replaygain_subtitle">Normalize volume levels</string>
+    <string name="crossfade">Crossfade</string>
+    <string name="crossfade_subtitle">Smooth transitions between tracks</string>
+    
+    <string name="scan_library">Scan Music Library</string>
+    <string name="scan_library_subtitle">Refresh your music collection</string>
+    <string name="music_folders">Music Folders</string>
+    <string name="music_folders_subtitle">Choose where to find music</string>
+    <string name="file_formats">File Formats</string>
+    <string name="file_formats_subtitle">Supported audio formats</string>
+    
+    <string name="theme">Theme</string>
+    <string name="theme_subtitle">Light, dark, or system default</string>
+    <string name="now_playing_settings">Now Playing</string>
+    <string name="now_playing_settings_subtitle">Customize player interface</string>
+    
+    <string name="gapless_playback">Gapless Playback</string>
+    <string name="gapless_playback_subtitle">Seamless track transitions</string>
+    <string name="resume_playback">Resume Playback</string>
+    <string name="resume_playback_subtitle">Continue from where you left off</string>
+    <string name="headphone_controls">Headphone Controls</string>
+    <string name="headphone_controls_subtitle">Configure media button behavior</string>
+    
+    <string name="version">Version</string>
+    <string name="version_subtitle">Octavia v1.0.0</string>
+    <string name="open_source_licenses">Open Source Licenses</string>
+    <string name="open_source_licenses_subtitle">View third-party software licenses</string>
+    <string name="support">Support</string>
+    <string name="support_subtitle">Get help and report issues</string>
+    
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong</string>
+    <string name="error_no_tracks">No tracks found</string>
+    <string name="error_playback">Playback error</string>
+    <string name="error_library_scan">Library scan failed</string>
+    
+    <!-- Notifications -->
+    <string name="notification_channel_playback">Music Playback</string>
+    <string name="notification_channel_playback_description">Controls for music playback</string>
+    
+    <!-- Recently Added -->
+    <string name="recently_added">Recently Added</string>
+    <string name="recently_played">Recently Played</string>
+    <string name="most_played">Most Played</string>
+    <string name="favorites">Favorites</string>
+    <string name="hi_res_audio">Hi-Res Audio</string>
+    <string name="hi_res_subtitle">High-quality lossless tracks</string>
+    
+    <!-- Stats -->
+    <string name="your_library">Your Library</string>
+    <string name="track_count">%1$d tracks</string>
+    <string name="album_count">%1$d albums</string>
+    <string name="artist_count">%1$d artists</string>
+    
+    <!-- Common -->
+    <string name="see_all">See All</string>
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="unknown_genre">Unknown Genre</string>
+    <string name="unnamed_playlist">Unnamed Playlist</string>
+</resources>
