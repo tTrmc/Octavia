@@ -23,7 +23,7 @@ import com.octavia.player.data.model.Album
 import java.io.File
 
 /**
- * Reusable track item component
+ * Premium track item component with Spotify/Tidal-like design
  */
 @Composable
 fun TrackItem(
@@ -35,108 +35,141 @@ fun TrackItem(
     showQuality: Boolean = false,
     onFavoriteClick: ((Track) -> Unit)? = null
 ) {
-    Card(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Album artwork
-            if (showAlbumArt) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val artworkPath = track.artworkPath ?: getAlbumArtPath(track)
-                    if (artworkPath != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(artworkPath)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Album art",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+        // Album artwork - larger and more prominent
+        if (showAlbumArt) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                val artworkPath = track.artworkPath ?: getAlbumArtPath(track)
+                if (artworkPath != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(artworkPath)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Album art",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Premium fallback design
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MusicNote,
+                            contentDescription = "No artwork",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
-                    } else {
-                        // Fallback icon when no artwork is available
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = "No artwork",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
-                
-                Spacer(modifier = Modifier.width(12.dp))
             }
             
-            // Track info
-            Column(
-                modifier = Modifier.weight(1f)
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+        
+        // Track info with premium styling
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = track.displayTitle,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = track.displayTitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (showQuality && track.qualityDescription.isNotBlank()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "HI-RES",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
                 
                 Text(
-                    text = "${track.displayArtist} • ${track.displayAlbum}",
+                    text = track.displayArtist,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-                
-                if (showQuality && track.qualityDescription.isNotBlank()) {
-                    Text(
-                        text = track.qualityDescription,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
-            
-            // Duration
+        }
+        
+        // Action buttons area - Spotify-like design
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Duration with modern styling
             Text(
                 text = track.formattedDuration,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                fontWeight = FontWeight.Medium
             )
             
-            // Favorite icon
+            // Favorite icon with modern styling
             if (showFavoriteIcon && onFavoriteClick != null) {
                 IconButton(
-                    onClick = { onFavoriteClick(track) }
+                    onClick = { onFavoriteClick(track) },
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (track.isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (track.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (track.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                // More options button - Spotify-style
+                IconButton(
+                    onClick = { /* TODO: Show track options */ },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -145,7 +178,7 @@ fun TrackItem(
 }
 
 /**
- * Album card component for horizontal lists
+ * Premium album card component with Spotify/Tidal-like design
  */
 @Composable
 fun AlbumCard(
@@ -153,55 +186,91 @@ fun AlbumCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Column(
         modifier = modifier
-            .width(140.dp)
+            .width(160.dp)
             .clickable { onClick() }
+            .padding(8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp)
+        // Album artwork with premium styling
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
         ) {
-            // Album artwork
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(album.artworkPath ?: "")
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "Album art",
+            if (album.artworkPath != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(album.artworkPath)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Album art",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Premium fallback design
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp)),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ) {
+                    Icon(
+                        Icons.Default.Album,
+                        contentDescription = "No album art",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            
+            // Play button overlay on hover (Spotify-style)
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Album info
-            Text(
-                text = album.displayName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            Text(
-                text = album.displayArtist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            if (album.year != null) {
-                Text(
-                    text = album.year.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(40.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 8.dp
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play album",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp)
                 )
             }
         }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Album info with modern typography
+        Text(
+            text = album.displayName,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Text(
+            text = album.displayArtist,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
