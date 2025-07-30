@@ -1,4 +1,4 @@
-package com.octavia.player.presentation.service
+package com.octavia.player.data.service
 
 import android.app.PendingIntent
 import android.content.Intent

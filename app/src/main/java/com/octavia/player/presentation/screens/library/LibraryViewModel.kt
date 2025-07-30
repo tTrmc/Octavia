@@ -7,10 +7,10 @@ import com.octavia.player.data.model.Album
 import com.octavia.player.data.model.Artist
 import com.octavia.player.data.model.Playlist
 import com.octavia.player.data.model.Track
-import com.octavia.player.data.repository.MediaRepository
-import com.octavia.player.data.repository.TrackRepository
-import com.octavia.player.data.scanner.ArtworkExtractor
-import com.octavia.player.data.scanner.MediaScanner
+import com.octavia.player.domain.repository.MediaPlaybackRepository
+import com.octavia.player.domain.usecase.GetTracksUseCase
+import com.octavia.player.domain.usecase.MediaLibraryScanUseCase
+import com.octavia.player.domain.usecase.PlaybackControlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,14 +25,16 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val application: Application,
-    private val trackRepository: TrackRepository,
-    private val mediaRepository: MediaRepository
+    private val getTracksUseCase: GetTracksUseCase,
+    private val playbackControlUseCase: PlaybackControlUseCase,
+    private val mediaLibraryScanUseCase: MediaLibraryScanUseCase,
+    private val mediaPlaybackRepository: MediaPlaybackRepository
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<LibraryUiState> = combine(
-        trackRepository.getAllTracks(),
-        mediaRepository.currentTrack,
-        mediaRepository.playerState
+        getTracksUseCase.getAllTracks(),
+        mediaPlaybackRepository.currentTrack,
+        mediaPlaybackRepository.playerState
     ) { tracks, currentTrack, playerState ->
         LibraryUiState(
             tracks = tracks,
@@ -49,8 +51,8 @@ class LibraryViewModel @Inject constructor(
     init {
         // Trigger initial scan if library is empty
         viewModelScope.launch {
-            val trackCount = trackRepository.getTrackCount()
-            if (trackCount == 0) {
+            val stats = mediaLibraryScanUseCase.getLibraryStats()
+            if (stats.totalTracks == 0) {
                 scanLibrary()
             }
         }
@@ -58,49 +60,47 @@ class LibraryViewModel @Inject constructor(
 
     fun scanLibrary() {
         viewModelScope.launch {
-            try {
-                // Fast scan without artwork extraction for immediate UI update
-                val scannedTracks = MediaScanner.scanMusicLibrary(application, extractArtworkInBackground = false)
-                if (scannedTracks.isNotEmpty()) {
-                    trackRepository.insertTracks(scannedTracks)
-                    
-                    // Extract artwork in background after tracks are inserted
-                    launch {
-                        ArtworkExtractor.preloadArtwork(application, scannedTracks)
-                    }
+            mediaLibraryScanUseCase.scanLibrary(application)
+                .onSuccess { trackCount ->
+                    // Successfully scanned $trackCount tracks
                 }
-            } catch (e: Exception) {
-                // TODO: Handle error state in a better way
-                // For now, the error will be logged, but we could emit it through a separate flow
-            }
+                .onFailure { exception ->
+                    // TODO: Handle error state in UI
+                }
         }
     }
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            mediaRepository.playTrack(track)
+            playbackControlUseCase.playTrack(track)
         }
     }
 
     fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
         viewModelScope.launch {
-            mediaRepository.playTracks(tracks, startIndex)
+            playbackControlUseCase.playTracks(tracks, startIndex)
         }
     }
 
     fun togglePlayPause() {
-        mediaRepository.togglePlayPause()
+        playbackControlUseCase.togglePlayPause()
     }
 
     fun skipToNext() {
         viewModelScope.launch {
-            mediaRepository.skipToNext()
+            playbackControlUseCase.skipToNext()
         }
     }
 
     fun skipToPrevious() {
         viewModelScope.launch {
-            mediaRepository.skipToPrevious()
+            playbackControlUseCase.skipToPrevious()
+        }
+    }
+    
+    fun toggleFavorite(track: Track) {
+        viewModelScope.launch {
+            playbackControlUseCase.toggleFavorite(track)
         }
     }
 }

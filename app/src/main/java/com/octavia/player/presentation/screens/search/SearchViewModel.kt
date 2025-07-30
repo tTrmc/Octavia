@@ -3,8 +3,8 @@ package com.octavia.player.presentation.screens.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.octavia.player.data.model.Track
-import com.octavia.player.data.repository.MediaRepository
-import com.octavia.player.data.repository.TrackRepository
+import com.octavia.player.domain.usecase.GetTracksUseCase
+import com.octavia.player.domain.usecase.PlaybackControlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,8 +17,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val trackRepository: TrackRepository,
-    private val mediaRepository: MediaRepository
+    private val getTracksUseCase: GetTracksUseCase,
+    private val playbackControlUseCase: PlaybackControlUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -33,7 +33,7 @@ class SearchViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isLoading = true)
 
         viewModelScope.launch {
-            trackRepository.searchTracks(query.trim()).collect { results ->
+            getTracksUseCase.searchTracks(query.trim()).collect { results ->
                 _uiState.value = SearchUiState(
                     searchResults = results,
                     isLoading = false,
@@ -49,7 +49,7 @@ class SearchViewModel @Inject constructor(
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            mediaRepository.playTrack(track)
+            playbackControlUseCase.playTrack(track)
         }
     }
 }

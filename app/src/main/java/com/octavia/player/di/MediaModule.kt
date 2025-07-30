@@ -11,6 +11,9 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.trackselection.TrackSelector
+import com.octavia.player.data.repository.MediaPlaybackRepositoryImpl
+import com.octavia.player.domain.repository.MediaPlaybackRepository
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -89,4 +92,14 @@ object MediaModule {
             .setSeekForwardIncrementMs(30_000) // 30 second seek forward
             .build()
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class MediaRepositoryModule {
+    
+    @Binds
+    abstract fun bindMediaPlaybackRepository(
+        mediaPlaybackRepositoryImpl: MediaPlaybackRepositoryImpl
+    ): MediaPlaybackRepository
 }

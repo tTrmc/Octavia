@@ -8,6 +8,9 @@ import com.octavia.player.data.database.dao.ArtistDao
 import com.octavia.player.data.database.dao.GenreDao
 import com.octavia.player.data.database.dao.PlaylistDao
 import com.octavia.player.data.database.dao.TrackDao
+import com.octavia.player.data.repository.TrackRepositoryImpl
+import com.octavia.player.domain.repository.TrackRepository
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,4 +55,14 @@ object DatabaseModule {
 
     @Provides
     fun providePlaylistDao(database: OctaviaDatabase): PlaylistDao = database.playlistDao()
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    
+    @Binds
+    abstract fun bindTrackRepository(
+        trackRepositoryImpl: TrackRepositoryImpl
+    ): TrackRepository
 }

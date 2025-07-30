@@ -9,6 +9,7 @@ import com.octavia.player.data.model.PlayerState
 import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
 import com.octavia.player.data.model.Track
+import com.octavia.player.domain.repository.MediaPlaybackRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,26 +21,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for managing media playback state and operations
- * Acts as a bridge between the UI and Media3 ExoPlayer
+ * Implementation of MediaPlaybackRepository interface
+ * Manages ExoPlayer and playback state
  */
 @Singleton
-class MediaRepository @Inject constructor(
-    private val exoPlayer: ExoPlayer,
-    private val trackRepository: TrackRepository
-) {
+class MediaPlaybackRepositoryImpl @Inject constructor(
+    private val exoPlayer: ExoPlayer
+) : MediaPlaybackRepository {
 
     private val _playerState = MutableStateFlow(PlayerState())
-    val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
+    override val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
 
     private val _playbackQueue = MutableStateFlow(PlaybackQueue())
-    val playbackQueue: StateFlow<PlaybackQueue> = _playbackQueue.asStateFlow()
+    override val playbackQueue: StateFlow<PlaybackQueue> = _playbackQueue.asStateFlow()
 
     private val _currentTrack = MutableStateFlow<Track?>(null)
-    val currentTrack: StateFlow<Track?> = _currentTrack.asStateFlow()
+    override val currentTrack: StateFlow<Track?> = _currentTrack.asStateFlow()
 
     // Position updates flow - optimized to only emit when playing
-    val currentPosition: Flow<Long> = flow {
+    override val currentPosition: Flow<Long> = flow {
         while (true) {
             if (exoPlayer.isPlaying) {
                 emit(exoPlayer.currentPosition)
@@ -54,24 +54,85 @@ class MediaRepository @Inject constructor(
         setupPlayerListener()
     }
 
-    /**
-     * Play a specific track
-     */
-    suspend fun playTrack(track: Track) {
+    override suspend fun playTrack(track: Track) {
         setQueue(listOf(track), 0)
         play()
-        trackRepository.incrementPlayCount(track.id)
     }
 
-    /**
-     * Play a list of tracks starting from a specific index
-     */
-    suspend fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
+    override suspend fun playTracks(tracks: List<Track>, startIndex: Int) {
         setQueue(tracks, startIndex)
         play()
-        tracks.getOrNull(startIndex)?.let { track ->
-            trackRepository.incrementPlayCount(track.id)
+    }
+
+    override fun play() {
+        exoPlayer.play()
+    }
+
+    override fun pause() {
+        exoPlayer.pause()
+    }
+
+    override fun togglePlayPause() {
+        if (exoPlayer.isPlaying) {
+            pause()
+        } else {
+            play()
         }
+    }
+
+    override suspend fun skipToNext() {
+        if (exoPlayer.hasNextMediaItem()) {
+            exoPlayer.seekToNext()
+            updateCurrentTrackFromPlayer()
+        }
+    }
+
+    override suspend fun skipToPrevious() {
+        if (exoPlayer.hasPreviousMediaItem()) {
+            exoPlayer.seekToPrevious()
+            updateCurrentTrackFromPlayer()
+        }
+    }
+
+    override fun seekTo(position: Long) {
+        exoPlayer.seekTo(position)
+    }
+
+    override fun setRepeatMode(repeatMode: RepeatMode) {
+        val exoRepeatMode = when (repeatMode) {
+            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+        }
+        exoPlayer.repeatMode = exoRepeatMode
+        _playerState.value = _playerState.value.copy(repeatMode = repeatMode)
+    }
+
+    override fun setShuffleMode(shuffleMode: ShuffleMode) {
+        val isShuffled = shuffleMode == ShuffleMode.ON
+        exoPlayer.shuffleModeEnabled = isShuffled
+        _playerState.value = _playerState.value.copy(shuffleMode = shuffleMode)
+        _playbackQueue.value = _playbackQueue.value.copy(isShuffled = isShuffled)
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        exoPlayer.setPlaybackSpeed(speed)
+        _playerState.value = _playerState.value.copy(playbackSpeed = speed)
+    }
+
+    override fun setVolume(volume: Float) {
+        exoPlayer.volume = volume.coerceIn(0f, 1f)
+        _playerState.value = _playerState.value.copy(volume = volume)
+    }
+
+    override fun stop() {
+        exoPlayer.stop()
+        _currentTrack.value = null
+        _playbackQueue.value = PlaybackQueue()
+    }
+
+    override fun release() {
+        exoPlayer.release()
     }
 
     /**
@@ -108,129 +169,6 @@ class MediaRepository @Inject constructor(
         )
 
         _currentTrack.value = tracks.getOrNull(startIndex)
-    }
-
-    /**
-     * Play/resume playback
-     */
-    fun play() {
-        exoPlayer.play()
-    }
-
-    /**
-     * Pause playback
-     */
-    fun pause() {
-        exoPlayer.pause()
-    }
-
-    /**
-     * Toggle play/pause
-     */
-    fun togglePlayPause() {
-        if (exoPlayer.isPlaying) {
-            pause()
-        } else {
-            play()
-        }
-    }
-
-    /**
-     * Skip to next track - optimized to avoid redundant database calls
-     */
-    suspend fun skipToNext() {
-        if (exoPlayer.hasNextMediaItem()) {
-            val previousTrack = currentTrack.value
-            exoPlayer.seekToNext()
-            updateCurrentTrackFromPlayer()
-            
-            // Only increment play count if track actually changed and was playing for reasonable time
-            val newTrack = currentTrack.value
-            if (newTrack != null && newTrack.id != previousTrack?.id) {
-                trackRepository.incrementPlayCount(newTrack.id)
-            }
-        }
-    }
-
-    /**
-     * Skip to previous track - optimized to avoid redundant database calls
-     */
-    suspend fun skipToPrevious() {
-        if (exoPlayer.hasPreviousMediaItem()) {
-            val previousTrack = currentTrack.value
-            exoPlayer.seekToPrevious()
-            updateCurrentTrackFromPlayer()
-            
-            // Only increment play count if track actually changed
-            val newTrack = currentTrack.value
-            if (newTrack != null && newTrack.id != previousTrack?.id) {
-                trackRepository.incrementPlayCount(newTrack.id)
-            }
-        }
-    }
-
-    /**
-     * Seek to a specific position
-     */
-    fun seekTo(position: Long) {
-        exoPlayer.seekTo(position)
-    }
-
-    /**
-     * Set repeat mode
-     */
-    fun setRepeatMode(repeatMode: RepeatMode) {
-        val exoRepeatMode = when (repeatMode) {
-            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
-            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
-            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
-        }
-        exoPlayer.repeatMode = exoRepeatMode
-
-        _playerState.value = _playerState.value.copy(repeatMode = repeatMode)
-    }
-
-    /**
-     * Set shuffle mode
-     */
-    fun setShuffleMode(shuffleMode: ShuffleMode) {
-        val isShuffled = shuffleMode == ShuffleMode.ON
-        exoPlayer.shuffleModeEnabled = isShuffled
-
-        _playerState.value = _playerState.value.copy(shuffleMode = shuffleMode)
-        _playbackQueue.value = _playbackQueue.value.copy(isShuffled = isShuffled)
-    }
-
-    /**
-     * Set playback speed
-     */
-    fun setPlaybackSpeed(speed: Float) {
-        exoPlayer.setPlaybackSpeed(speed)
-        _playerState.value = _playerState.value.copy(playbackSpeed = speed)
-    }
-
-    /**
-     * Set volume
-     */
-    fun setVolume(volume: Float) {
-        exoPlayer.volume = volume.coerceIn(0f, 1f)
-        _playerState.value = _playerState.value.copy(volume = volume)
-    }
-
-    /**
-     * Stop playback
-     */
-    fun stop() {
-        exoPlayer.stop()
-        _currentTrack.value = null
-        _playbackQueue.value = PlaybackQueue()
-    }
-
-    /**
-     * Release the player
-     */
-    fun release() {
-        exoPlayer.release()
     }
 
     /**

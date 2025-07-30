@@ -6,7 +6,8 @@ import com.octavia.player.data.model.PlaybackState
 import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
 import com.octavia.player.data.model.Track
-import com.octavia.player.data.repository.MediaRepository
+import com.octavia.player.domain.repository.MediaPlaybackRepository
+import com.octavia.player.domain.usecase.PlaybackControlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,13 +21,14 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val mediaRepository: MediaRepository
+    private val mediaPlaybackRepository: MediaPlaybackRepository,
+    private val playbackControlUseCase: PlaybackControlUseCase
 ) : ViewModel() {
 
     val uiState: StateFlow<PlayerUiState> = combine(
-        mediaRepository.playerState,
-        mediaRepository.currentTrack,
-        mediaRepository.currentPosition
+        mediaPlaybackRepository.playerState,
+        mediaPlaybackRepository.currentTrack,
+        mediaPlaybackRepository.currentPosition
     ) { playerState, currentTrack, currentPosition ->
         PlayerUiState(
             currentTrack = currentTrack,
@@ -47,29 +49,29 @@ class PlayerViewModel @Inject constructor(
     )
 
     fun togglePlayPause() {
-        mediaRepository.togglePlayPause()
+        playbackControlUseCase.togglePlayPause()
     }
 
     fun skipToNext() {
         viewModelScope.launch {
-            mediaRepository.skipToNext()
+            playbackControlUseCase.skipToNext()
         }
     }
 
     fun skipToPrevious() {
         viewModelScope.launch {
-            mediaRepository.skipToPrevious()
+            playbackControlUseCase.skipToPrevious()
         }
     }
 
     fun seekTo(position: Long) {
-        mediaRepository.seekTo(position)
+        playbackControlUseCase.seekTo(position)
     }
 
     fun toggleShuffle() {
         val currentShuffle = uiState.value.shuffleMode
         val newShuffle = if (currentShuffle == ShuffleMode.ON) ShuffleMode.OFF else ShuffleMode.ON
-        mediaRepository.setShuffleMode(newShuffle)
+        playbackControlUseCase.setShuffleMode(newShuffle)
     }
 
     fun toggleRepeat() {
@@ -79,15 +81,15 @@ class PlayerViewModel @Inject constructor(
             RepeatMode.ALL -> RepeatMode.ONE
             RepeatMode.ONE -> RepeatMode.OFF
         }
-        mediaRepository.setRepeatMode(newRepeat)
+        playbackControlUseCase.setRepeatMode(newRepeat)
     }
 
     fun setPlaybackSpeed(speed: Float) {
-        mediaRepository.setPlaybackSpeed(speed)
+        playbackControlUseCase.setPlaybackSpeed(speed)
     }
 
     fun setVolume(volume: Float) {
-        mediaRepository.setVolume(volume)
+        playbackControlUseCase.setVolume(volume)
     }
 }
 

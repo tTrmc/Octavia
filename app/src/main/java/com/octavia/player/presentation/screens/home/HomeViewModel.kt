@@ -4,8 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.octavia.player.data.model.Album
 import com.octavia.player.data.model.Track
-import com.octavia.player.data.repository.MediaRepository
-import com.octavia.player.data.repository.TrackRepository
+import com.octavia.player.domain.repository.MediaPlaybackRepository
+import com.octavia.player.domain.usecase.GetTracksUseCase
+import com.octavia.player.domain.usecase.PlaybackControlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,28 +20,29 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val trackRepository: TrackRepository,
-    private val mediaRepository: MediaRepository
+    private val getTracksUseCase: GetTracksUseCase,
+    private val playbackControlUseCase: PlaybackControlUseCase,
+    private val mediaPlaybackRepository: MediaPlaybackRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> =
-        trackRepository.getAllTracks()
-            .combine(trackRepository.getRecentlyPlayedTracks(10)) { tracks, recentlyPlayed ->
+        getTracksUseCase.getAllTracks()
+            .combine(getTracksUseCase.getRecentlyPlayedTracks(10)) { tracks, recentlyPlayed ->
                 tracks to recentlyPlayed
             }
-            .combine(trackRepository.getRecentlyAddedTracks()) { (tracks, recentlyPlayed), recentlyAdded ->
+            .combine(getTracksUseCase.getRecentlyAddedTracks()) { (tracks, recentlyPlayed), recentlyAdded ->
                 Triple(tracks, recentlyPlayed, recentlyAdded)
             }
-            .combine(trackRepository.getFavoriteTracks()) { (tracks, recentlyPlayed, recentlyAdded), favorites ->
+            .combine(getTracksUseCase.getFavoriteTracks()) { (tracks, recentlyPlayed, recentlyAdded), favorites ->
                 listOf(tracks, recentlyPlayed, recentlyAdded, favorites)
             }
-            .combine(trackRepository.getHiResTracks()) { trackLists, hiRes ->
+            .combine(getTracksUseCase.getHiResTracks()) { trackLists, hiRes ->
                 trackLists + listOf(hiRes)
             }
-            .combine(mediaRepository.currentTrack) { trackLists, currentTrack ->
+            .combine(mediaPlaybackRepository.currentTrack) { trackLists, currentTrack ->
                 trackLists to currentTrack
             }
-            .combine(mediaRepository.playerState) { (trackLists, currentTrack), playerState ->
+            .combine(mediaPlaybackRepository.playerState) { (trackLists, currentTrack), playerState ->
                 val (tracks, recentlyPlayed, recentlyAdded, favorites, hiRes) = trackLists
                 
                 // Calculate stats from tracks
@@ -73,23 +75,23 @@ class HomeViewModel @Inject constructor(
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            mediaRepository.playTrack(track)
+            playbackControlUseCase.playTrack(track)
         }
     }
 
     fun togglePlayPause() {
-        mediaRepository.togglePlayPause()
+        playbackControlUseCase.togglePlayPause()
     }
 
     fun skipToNext() {
         viewModelScope.launch {
-            mediaRepository.skipToNext()
+            playbackControlUseCase.skipToNext()
         }
     }
 
     fun skipToPrevious() {
         viewModelScope.launch {
-            mediaRepository.skipToPrevious()
+            playbackControlUseCase.skipToPrevious()
         }
     }
 
