@@ -9,10 +9,6 @@
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 
-# Keep JAudiotagger
--keep class org.jaudiotagger.** { *; }
--dontwarn org.jaudiotagger.**
-
 # Keep Hilt generated classes
 -keep class dagger.hilt.** { *; }
 -keep class * extends dagger.hilt.android.lifecycle.HiltViewModel

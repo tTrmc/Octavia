@@ -9,6 +9,7 @@ import com.octavia.player.data.model.Playlist
 import com.octavia.player.data.model.Track
 import com.octavia.player.data.repository.MediaRepository
 import com.octavia.player.data.repository.TrackRepository
+import com.octavia.player.data.scanner.ArtworkExtractor
 import com.octavia.player.data.scanner.MediaScanner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,9 +59,15 @@ class LibraryViewModel @Inject constructor(
     fun scanLibrary() {
         viewModelScope.launch {
             try {
-                val scannedTracks = MediaScanner.scanMusicLibrary(application)
+                // Fast scan without artwork extraction for immediate UI update
+                val scannedTracks = MediaScanner.scanMusicLibrary(application, extractArtworkInBackground = false)
                 if (scannedTracks.isNotEmpty()) {
                     trackRepository.insertTracks(scannedTracks)
+                    
+                    // Extract artwork in background after tracks are inserted
+                    launch {
+                        ArtworkExtractor.preloadArtwork(application, scannedTracks)
+                    }
                 }
             } catch (e: Exception) {
                 // TODO: Handle error state in a better way

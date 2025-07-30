@@ -87,7 +87,7 @@ fun TrackItem(
                         .clip(RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    val artworkPath = track.artworkPath ?: getAlbumArtPath(track)
+                    val artworkPath = track.artworkPath
                     if (artworkPath != null) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
@@ -365,7 +365,7 @@ fun MiniPlayer(
                     .clip(RoundedCornerShape(6.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                val artworkPath = track.artworkPath ?: getAlbumArtPath(track)
+                val artworkPath = track.artworkPath
                 if (artworkPath != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -446,59 +446,11 @@ fun MiniPlayer(
     }
 }
 
-/**
- * Helper function to get album art path from track
- */
-private fun getAlbumArtPath(track: Track): String? {
-    // Try to find embedded artwork or external files
-    // This is a simplified implementation
-    val artworkExtensions = listOf(".jpg", ".jpeg", ".png", ".webp")
-    val trackFile = File(track.filePath)
-    val parentDir = trackFile.parentFile
-
-    parentDir?.let { dir ->
-        // Look for common album art filenames
-        val commonNames = listOf("cover", "album", "front", "folder")
-
-        for (name in commonNames) {
-            for (ext in artworkExtensions) {
-                val artworkFile = File(dir, "$name$ext")
-                if (artworkFile.exists()) {
-                    return artworkFile.absolutePath
-                }
-            }
-        }
-    }
-
-    return null
-}
 
 /**
  * Helper function to check if track is in a lossless format
  */
 private fun isLosslessFormat(track: Track): Boolean {
-    val losslessExtensions = setOf(
-        ".flac",   // Free Lossless Audio Codec
-        ".alac",   // Apple Lossless Audio Codec
-        ".ape",    // Monkey's Audio
-        ".wav",    // Waveform Audio File Format
-        ".aiff",   // Audio Interchange File Format
-        ".dff",    // Direct Stream Digital
-        ".dsf",    // Direct Stream Digital
-        ".dsd",    // Direct Stream Digital
-        ".wv",     // WavPack
-        ".tta",    // True Audio
-        ".m4a"     // MPEG-4 Audio (can be ALAC)
-    )
-    
-    val fileExtension = File(track.filePath).extension.lowercase()
-    
-    // Special case for M4A - check if it's ALAC (lossless) or AAC (lossy)
-    if (fileExtension == "m4a") {
-        // Check codec information if available
-        return track.qualityDescription.contains("ALAC", ignoreCase = true) ||
-               track.qualityDescription.contains("Apple Lossless", ignoreCase = true)
-    }
-    
-    return ".${fileExtension}" in losslessExtensions
+    // Use the isLossless field from the database instead of file extension parsing
+    return track.isLossless
 }

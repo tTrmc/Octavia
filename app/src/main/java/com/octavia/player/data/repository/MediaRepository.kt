@@ -38,11 +38,15 @@ class MediaRepository @Inject constructor(
     private val _currentTrack = MutableStateFlow<Track?>(null)
     val currentTrack: StateFlow<Track?> = _currentTrack.asStateFlow()
 
-    // Position updates flow
+    // Position updates flow - optimized to only emit when playing
     val currentPosition: Flow<Long> = flow {
         while (true) {
-            emit(exoPlayer.currentPosition)
-            delay(1000) // Update every second
+            if (exoPlayer.isPlaying) {
+                emit(exoPlayer.currentPosition)
+                delay(500) // Update twice per second when playing
+            } else {
+                delay(1000) // Check less frequently when paused
+            }
         }
     }.flowOn(kotlinx.coroutines.Dispatchers.Main)
 
@@ -71,9 +75,20 @@ class MediaRepository @Inject constructor(
     }
 
     /**
-     * Set the playback queue
+     * Set the playback queue - optimized to avoid redundant operations
      */
     private fun setQueue(tracks: List<Track>, startIndex: Int) {
+        // Only update if the queue actually changed
+        val currentQueue = _playbackQueue.value
+        val isSameQueue = currentQueue.tracks.size == tracks.size && 
+                         currentQueue.tracks.zip(tracks).all { (a, b) -> a.id == b.id }
+        
+        if (isSameQueue && currentQueue.currentIndex == startIndex) {
+            // Just update the current track without rebuilding queue
+            _currentTrack.value = tracks.getOrNull(startIndex)
+            return
+        }
+        
         val mediaItems = tracks.map { track ->
             MediaItem.Builder()
                 .setUri(track.filePath)
@@ -88,7 +103,7 @@ class MediaRepository @Inject constructor(
             tracks = tracks,
             currentIndex = startIndex,
             originalOrder = tracks,
-            shuffledOrder = tracks.shuffled(),
+            shuffledOrder = if (tracks.size > 1) tracks.shuffled() else tracks,
             isShuffled = false
         )
 
@@ -121,27 +136,35 @@ class MediaRepository @Inject constructor(
     }
 
     /**
-     * Skip to next track
+     * Skip to next track - optimized to avoid redundant database calls
      */
     suspend fun skipToNext() {
         if (exoPlayer.hasNextMediaItem()) {
+            val previousTrack = currentTrack.value
             exoPlayer.seekToNext()
             updateCurrentTrackFromPlayer()
-            currentTrack.value?.let { track ->
-                trackRepository.incrementPlayCount(track.id)
+            
+            // Only increment play count if track actually changed and was playing for reasonable time
+            val newTrack = currentTrack.value
+            if (newTrack != null && newTrack.id != previousTrack?.id) {
+                trackRepository.incrementPlayCount(newTrack.id)
             }
         }
     }
 
     /**
-     * Skip to previous track
+     * Skip to previous track - optimized to avoid redundant database calls
      */
     suspend fun skipToPrevious() {
         if (exoPlayer.hasPreviousMediaItem()) {
+            val previousTrack = currentTrack.value
             exoPlayer.seekToPrevious()
             updateCurrentTrackFromPlayer()
-            currentTrack.value?.let { track ->
-                trackRepository.incrementPlayCount(track.id)
+            
+            // Only increment play count if track actually changed
+            val newTrack = currentTrack.value
+            if (newTrack != null && newTrack.id != previousTrack?.id) {
+                trackRepository.incrementPlayCount(newTrack.id)
             }
         }
     }

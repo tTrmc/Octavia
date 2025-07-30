@@ -14,12 +14,12 @@ plugins {
 
 android {
     namespace = "com.octavia.player"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.octavia.player"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -91,7 +91,7 @@ android {
 
     // Temporarily disable detekt for initial build
     tasks.named("detekt") {
-        enabled = false
+        enabled = true
     }
 }
 
@@ -109,7 +109,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation(libs.androidx.appcompat)
 
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))

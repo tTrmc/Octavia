@@ -5,48 +5,70 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.util.Log
+import com.octavia.player.data.model.Track
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
 /**
  * Utility class for extracting and managing album artwork
+ * Optimized for performance with better caching strategy
  */
 object ArtworkExtractor {
 
     private const val TAG = "ArtworkExtractor"
     private const val ARTWORK_CACHE_DIR = "artwork_cache"
     private const val MAX_ARTWORK_SIZE = 1024 // Max width/height in pixels
+    
+    // In-memory cache to avoid repeated file system checks
+    private val artworkCache = mutableMapOf<String, String?>()
+    private val failedExtractions = mutableSetOf<String>()
 
     /**
      * Extracts artwork for a track, trying both embedded and external sources
      * Returns the path to the artwork file if found, null otherwise
+     * Optimized with in-memory caching and failure tracking
      */
     fun extractArtwork(context: Context, filePath: String, albumId: Long?): String? {
+        val cacheKey = getCacheKey(albumId, filePath)
+        
+        // Check in-memory cache first
+        if (artworkCache.containsKey(cacheKey)) {
+            return artworkCache[cacheKey]
+        }
+        
+        // Skip files we already know have no artwork
+        if (failedExtractions.contains(cacheKey)) {
+            return null
+        }
+        
         try {
-            // First try to find cached artwork
+            // First try to find cached artwork on disk
             val cachedPath = getCachedArtworkPath(context, albumId, filePath)
             if (cachedPath != null && File(cachedPath).exists()) {
+                artworkCache[cacheKey] = cachedPath
                 return cachedPath
             }
 
-            // Try embedded artwork first
+            // Try external artwork files first (faster than embedded extraction)
+            val externalArtwork = findExternalArtwork(filePath)
+            if (externalArtwork != null) {
+                // For external files, just cache the path directly if it's a reasonable size
+                val externalFile = File(externalArtwork)
+                if (externalFile.length() < 10 * 1024 * 1024) { // Skip very large files (>10MB)
+                    artworkCache[cacheKey] = externalArtwork
+                    return externalArtwork
+                }
+            }
+            
+            // Try embedded artwork (more expensive operation)
             val embeddedArtwork = extractEmbeddedArtwork(filePath)
             if (embeddedArtwork != null) {
                 val savedPath = saveArtworkToCache(context, embeddedArtwork, albumId, filePath)
                 if (savedPath != null) {
-                    return savedPath
-                }
-            }
-
-            // Try external artwork files
-            val externalArtwork = findExternalArtwork(filePath)
-            if (externalArtwork != null) {
-                // Copy external artwork to cache for consistency
-                val bitmap = BitmapFactory.decodeFile(externalArtwork)
-                if (bitmap != null) {
-                    val savedPath = saveArtworkToCache(context, bitmap, albumId, filePath)
-                    bitmap.recycle()
+                    artworkCache[cacheKey] = savedPath
                     return savedPath
                 }
             }
@@ -54,8 +76,22 @@ object ArtworkExtractor {
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting artwork for $filePath", e)
         }
-
+        
+        // Cache the failure to avoid repeated attempts
+        failedExtractions.add(cacheKey)
+        artworkCache[cacheKey] = null
         return null
+    }
+    
+    /**
+     * Generate cache key for artwork
+     */
+    private fun getCacheKey(albumId: Long?, filePath: String): String {
+        return if (albumId != null) {
+            "album_$albumId"
+        } else {
+            "track_${filePath.hashCode()}"
+        }
     }
 
     /**
@@ -202,8 +238,26 @@ object ArtworkExtractor {
             if (cacheDir.exists()) {
                 cacheDir.deleteRecursively()
             }
+            // Clear in-memory caches
+            artworkCache.clear()
+            failedExtractions.clear()
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing artwork cache", e)
+        }
+    }
+    
+    /**
+     * Preload artwork for a batch of tracks (for background processing)
+     */
+    suspend fun preloadArtwork(context: Context, tracks: List<Track>) = withContext(Dispatchers.IO) {
+        // Group tracks by album to avoid duplicate work
+        val albumGroups = tracks.groupBy { it.albumId }
+        
+        albumGroups.forEach { (albumId, albumTracks) ->
+            if (albumTracks.isNotEmpty()) {
+                val firstTrack = albumTracks.first()
+                extractArtwork(context, firstTrack.filePath, albumId)
+            }
         }
     }
 }
