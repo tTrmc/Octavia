@@ -123,6 +123,15 @@ interface TrackDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM tracks WHERE file_path = :filePath AND last_modified = :lastModified)")
     suspend fun isTrackUpToDate(filePath: String, lastModified: Long): Boolean
+
+    @Query("SELECT * FROM tracks WHERE artwork_path IS NULL OR artwork_path = '' LIMIT :limit")
+    suspend fun getTracksWithoutArtwork(limit: Int): List<Track>
+
+    @Query("SELECT COUNT(*) FROM tracks WHERE artwork_path IS NOT NULL AND artwork_path != ''")
+    suspend fun getTracksWithArtworkCount(): Int
+
+    @Query("UPDATE tracks SET artwork_path = NULL")
+    suspend fun clearAllArtworkPaths()
 }
 
 /**

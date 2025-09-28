@@ -9,7 +9,9 @@ import com.octavia.player.data.database.dao.GenreDao
 import com.octavia.player.data.database.dao.PlaylistDao
 import com.octavia.player.data.database.dao.TrackDao
 import com.octavia.player.data.repository.TrackRepositoryImpl
+import com.octavia.player.data.repository.ArtworkRepositoryImpl
 import com.octavia.player.domain.repository.TrackRepository
+import com.octavia.player.domain.repository.ArtworkRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -60,9 +62,14 @@ object DatabaseModule {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
-    
+
     @Binds
     abstract fun bindTrackRepository(
         trackRepositoryImpl: TrackRepositoryImpl
     ): TrackRepository
+
+    @Binds
+    abstract fun bindArtworkRepository(
+        artworkRepositoryImpl: ArtworkRepositoryImpl
+    ): ArtworkRepository
 }

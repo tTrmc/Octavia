@@ -52,7 +52,7 @@ object MediaScanner {
             cursor?.use {
                 while (it.moveToNext()) {
                     yield() // Allow other coroutines to run
-                    val track = createTrackFromCursor(context, it, extractArtworkInBackground)
+                    val track = createTrackFromCursor(context, it, extractArtwork = true)
                     track?.let { validTrack ->
                         scannedTracks.add(validTrack)
                     }
@@ -63,7 +63,7 @@ object MediaScanner {
             e.printStackTrace()
         }
 
-        // If extracting artwork in background, preload artwork for grouped albums
+        // Since we extract artwork during scan, we can still do background preloading for any missed tracks
         if (extractArtworkInBackground && scannedTracks.isNotEmpty()) {
             async {
                 ArtworkExtractor.preloadArtwork(context, scannedTracks)

@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Support
 import androidx.compose.material.icons.filled.Tune
@@ -47,16 +49,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -65,8 +74,22 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val artworkProgress by viewModel.artworkExtractionProgress.collectAsState()
+    val cacheStats by viewModel.cacheStats.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show messages in snackbar
+    LaunchedEffect(message) {
+        message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -96,7 +119,8 @@ fun SettingsScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -105,6 +129,15 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Progress indicator for ongoing operations
+            if (isLoading || artworkProgress != null) {
+                item {
+                    ProgressSection(
+                        isLoading = isLoading,
+                        artworkProgress = artworkProgress
+                    )
+                }
+            }
             item {
                 // Header with app info
                 Surface(
@@ -185,7 +218,32 @@ fun SettingsScreen(
                         title = "Scan Music Library",
                         subtitle = "Refresh your music collection",
                         icon = Icons.Default.Refresh,
-                        onClick = { /* TODO: Trigger library scan */ }
+                        onClick = { viewModel.triggerLibraryScan() }
+                    )
+
+                    SettingsItem(
+                        title = "Extract Album Artwork",
+                        subtitle = buildString {
+                            append("Extract artwork for tracks without it")
+                            cacheStats?.let { stats ->
+                                append(" (${stats.tracksWithoutArtwork} missing)")
+                            }
+                        },
+                        icon = Icons.Default.Image,
+                        onClick = { viewModel.extractArtworkForMissingTracks() }
+                    )
+
+                    SettingsItem(
+                        title = "Clear Artwork Cache",
+                        subtitle = buildString {
+                            append("Remove cached album artwork")
+                            cacheStats?.let { stats ->
+                                val sizeMB = stats.cacheSize / (1024 * 1024)
+                                append(" (${stats.totalCachedFiles} files, ${sizeMB}MB)")
+                            }
+                        },
+                        icon = Icons.Default.CleaningServices,
+                        onClick = { viewModel.clearArtworkCache() }
                     )
 
                     SettingsItem(
@@ -390,6 +448,72 @@ private fun SettingsItem(
                 modifier = Modifier.padding(start = 64.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+/**
+ * Progress section for ongoing operations
+ */
+@Composable
+private fun ProgressSection(
+    isLoading: Boolean,
+    artworkProgress: com.octavia.player.domain.repository.ArtworkExtractionProgress?
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            if (artworkProgress != null) {
+                Text(
+                    text = "Extracting Artwork",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LinearProgressIndicator(
+                    progress = artworkProgress.progressPercentage / 100f,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "${artworkProgress.completed} / ${artworkProgress.total} tracks",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+
+                artworkProgress.currentTrack?.let { track ->
+                    Text(
+                        text = "Processing: ${track.displayTitle}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else if (isLoading) {
+                Text(
+                    text = "Processing...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
