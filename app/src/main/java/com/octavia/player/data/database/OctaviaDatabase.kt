@@ -55,6 +55,16 @@ abstract class OctaviaDatabase : RoomDatabase() {
                 try {
                     // Add the artwork_path column to the tracks table
                     database.execSQL("ALTER TABLE tracks ADD COLUMN artwork_path TEXT")
+
+                    // Add performance indices for common queries
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_search ON tracks(title, artist, album)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_artist_id ON tracks(artist_id)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_playback ON tracks(play_count DESC, last_played DESC)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_metadata ON tracks(sample_rate_hz, bit_depth, is_lossless)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_date_added ON tracks(date_added DESC)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_codec ON tracks(codec_name)")
+
                 } catch (e: Exception) {
                     // Log the error but don't crash - fallback migration will handle it
                     android.util.Log.e("OctaviaDatabase", "Migration 1->2 failed", e)

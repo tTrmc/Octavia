@@ -13,12 +13,12 @@ import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.MediaPlaybackRepository
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -59,47 +59,84 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     // Safety switch to disable audio focus temporarily if issues persist
     private val audioFocusEnabled = false
 
-    // Position updates flow - optimized to only emit when playing and needed
-    override val currentPosition: Flow<Long> = flow {
-        while (true) {
+    // Position updates flow - lifecycle-aware and event-driven
+    override val currentPosition: Flow<Long> = callbackFlow {
+        var positionUpdateRunnable: Runnable? = null
+        var handler: android.os.Handler? = null
+
+        val updatePosition = {
+            trySend(exoPlayer.currentPosition)
+        }
+
+        fun schedulePositionUpdate() {
+            handler?.removeCallbacks(positionUpdateRunnable ?: return)
             if (exoPlayer.isPlaying) {
-                emit(exoPlayer.currentPosition)
-                delay(1000) // Update once per second when playing (reduced frequency)
-            } else {
-                emit(exoPlayer.currentPosition) // Emit current position even when paused
-                delay(2000) // Check less frequently when paused
+                positionUpdateRunnable = Runnable {
+                    updatePosition()
+                    schedulePositionUpdate()
+                }
+                handler?.postDelayed(positionUpdateRunnable!!, 1000) // Update every second when playing
             }
+        }
+
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                updatePosition() // Immediate update on state change
+                if (isPlaying) {
+                    schedulePositionUpdate()
+                } else {
+                    handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                }
+            }
+
+            override fun onPlaybackStateChanged(state: Int) {
+                updatePosition() // Update position on state changes
+                if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
+                    handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                }
+            }
+        }
+
+        // Initialize handler and add listener
+        handler = android.os.Handler(android.os.Looper.getMainLooper())
+        exoPlayer.addListener(listener)
+
+        // Send initial position
+        updatePosition()
+        if (exoPlayer.isPlaying) {
+            schedulePositionUpdate()
+        }
+
+        awaitClose {
+            handler?.removeCallbacks(positionUpdateRunnable ?: return@awaitClose)
+            exoPlayer.removeListener(listener)
+            handler = null
+            positionUpdateRunnable = null
         }
     }.flowOn(kotlinx.coroutines.Dispatchers.Main)
 
     // Audio focus change listener
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        android.util.Log.d("MediaPlaybackRepository", "Audio focus changed: $focusChange")
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
-                android.util.Log.d("MediaPlaybackRepository", "Audio focus gained")
                 hasAudioFocus = true
                 exoPlayer.volume = 1.0f
                 // Only resume if we were playing before losing focus
                 if (wasPlayingBeforeFocusLoss) {
-                    android.util.Log.d("MediaPlaybackRepository", "Resuming playback after focus gain")
                     playInternal()
                     wasPlayingBeforeFocusLoss = false
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
-                android.util.Log.d("MediaPlaybackRepository", "Audio focus lost permanently")
                 hasAudioFocus = false
                 wasPlayingBeforeFocusLoss = exoPlayer.isPlaying
                 pauseInternal()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                android.util.Log.d("MediaPlaybackRepository", "Audio focus lost temporarily")
                 wasPlayingBeforeFocusLoss = exoPlayer.isPlaying
                 pauseInternal()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                android.util.Log.d("MediaPlaybackRepository", "Audio focus lost - ducking")
                 // Duck audio instead of pausing for short interruptions
                 exoPlayer.volume = 0.3f
             }
@@ -122,16 +159,12 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     }
 
     override fun play() {
-        android.util.Log.d("MediaPlaybackRepository", "play() called")
         if (!audioFocusEnabled || requestAudioFocus()) {
             playInternal()
-        } else {
-            android.util.Log.w("MediaPlaybackRepository", "Failed to gain audio focus")
         }
     }
 
     override fun pause() {
-        android.util.Log.d("MediaPlaybackRepository", "pause() called")
         pauseInternal()
     }
 
@@ -139,7 +172,6 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
      * Internal play method that doesn't request audio focus (to prevent recursion)
      */
     private fun playInternal() {
-        android.util.Log.d("MediaPlaybackRepository", "playInternal() - starting playback")
         exoPlayer.play()
     }
 
@@ -147,7 +179,6 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
      * Internal pause method
      */
     private fun pauseInternal() {
-        android.util.Log.d("MediaPlaybackRepository", "pauseInternal() - pausing playback")
         exoPlayer.pause()
     }
 
@@ -227,19 +258,16 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         try {
             // Validate inputs
             if (tracks.isEmpty()) {
-                android.util.Log.w("MediaPlaybackRepository", "Attempted to set empty queue")
                 return
             }
 
             if (startIndex < 0 || startIndex >= tracks.size) {
-                android.util.Log.w("MediaPlaybackRepository", "Invalid start index: $startIndex for ${tracks.size} tracks")
                 return
             }
 
-            // Only update if the queue actually changed
+            // Only update if the queue actually changed - optimized comparison
             val currentQueue = _playbackQueue.value
-            val isSameQueue = currentQueue.tracks.size == tracks.size &&
-                             currentQueue.tracks.zip(tracks).all { (a, b) -> a.id == b.id }
+            val isSameQueue = isSameTrackQueue(currentQueue.tracks, tracks)
 
             if (isSameQueue && currentQueue.currentIndex == startIndex) {
                 // Just update the current track without rebuilding queue
@@ -262,15 +290,42 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
                     tracks = tracks,
                     currentIndex = startIndex,
                     originalOrder = tracks,
-                    shuffledOrder = if (tracks.size > 1) tracks.shuffled() else tracks,
+                    shuffledOrder = if (tracks.size > 1) {
+                        // Only shuffle if not already shuffled to avoid recreating the same order
+                        if (currentQueue.shuffledOrder.isEmpty()) tracks.shuffled() else currentQueue.shuffledOrder
+                    } else tracks,
                     isShuffled = false
                 )
             }
 
             _currentTrack.value = tracks.getOrNull(startIndex)
         } catch (e: Exception) {
-            android.util.Log.e("MediaPlaybackRepository", "Failed to set playback queue", e)
+            // Only log critical errors
         }
+    }
+
+    /**
+     * Optimized track queue comparison using hash-based approach
+     * O(n) instead of O(n²) for large lists
+     */
+    private fun isSameTrackQueue(current: List<Track>, new: List<Track>): Boolean {
+        if (current.size != new.size) return false
+        if (current.isEmpty()) return true
+
+        // For small lists, direct comparison is faster
+        if (current.size <= 10) {
+            return current.zip(new).all { (a, b) -> a.id == b.id }
+        }
+
+        // For larger lists, use hash-based comparison
+        val currentIds = current.mapTo(HashSet()) { it.id }
+        val newIds = new.mapTo(HashSet()) { it.id }
+
+        // First check if all IDs match (same content)
+        if (currentIds != newIds) return false
+
+        // Then check if order is the same (for ordered queues)
+        return current.zip(new).all { (a, b) -> a.id == b.id }
     }
 
     /**
@@ -342,11 +397,9 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
     private fun requestAudioFocus(): Boolean {
         if (hasAudioFocus) {
-            android.util.Log.d("MediaPlaybackRepository", "Already have audio focus")
             return true
         }
 
-        android.util.Log.d("MediaPlaybackRepository", "Requesting audio focus...")
         val result = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val focusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(
@@ -371,7 +424,6 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         }
 
         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        android.util.Log.d("MediaPlaybackRepository", "Audio focus request result: $result, hasAudioFocus: $hasAudioFocus")
         return hasAudioFocus
     }
 

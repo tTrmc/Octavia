@@ -21,25 +21,39 @@ object ArtworkExtractor {
     private const val TAG = "ArtworkExtractor"
     private const val ARTWORK_CACHE_DIR = "artwork_cache"
     private const val MAX_ARTWORK_SIZE = 1024 // Max width/height in pixels
-    
-    // In-memory cache to avoid repeated file system checks
-    private val artworkCache = mutableMapOf<String, String?>()
-    private val failedExtractions = mutableSetOf<String>()
+    private const val MAX_CACHE_SIZE = 500 // Maximum number of cached items
+    private const val MAX_FAILED_CACHE_SIZE = 100 // Maximum failed extractions to remember
+
+    // LRU cache for artwork paths with size limit
+    private val artworkCache = object : LinkedHashMap<String, String?>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String?>?): Boolean {
+            return size > MAX_CACHE_SIZE
+        }
+    }
+
+    // LRU cache for failed extractions with size limit
+    private val failedExtractions = object : LinkedHashSet<String>() {
+        override fun add(element: String): Boolean {
+            if (size >= MAX_FAILED_CACHE_SIZE) {
+                remove(iterator().next()) // Remove oldest
+            }
+            return super.add(element)
+        }
+    }
 
     /**
      * Extracts artwork for a track, trying both embedded and external sources
      * Returns the path to the artwork file if found, null otherwise
      * Optimized with in-memory caching and failure tracking
      */
+    @Synchronized
     fun extractArtwork(context: Context, filePath: String, albumId: Long?): String? {
         val cacheKey = getCacheKey(albumId, filePath)
-        
+
         // Check in-memory cache first
-        if (artworkCache.containsKey(cacheKey)) {
-            return artworkCache[cacheKey]
-        }
-        
-        // Skip files we already know have no artwork
+        artworkCache[cacheKey]?.let { return it }
+
+        // Check if we've already failed to extract this artwork
         if (failedExtractions.contains(cacheKey)) {
             return null
         }
@@ -232,6 +246,7 @@ object ArtworkExtractor {
     /**
      * Clears all cached artwork
      */
+    @Synchronized
     fun clearArtworkCache(context: Context) {
         try {
             val cacheDir = File(context.cacheDir, ARTWORK_CACHE_DIR)
@@ -243,6 +258,34 @@ object ArtworkExtractor {
             failedExtractions.clear()
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing artwork cache", e)
+        }
+    }
+
+    /**
+     * Clean up memory by trimming caches if they're getting too large
+     */
+    @Synchronized
+    fun trimMemoryCache() {
+        // The LinkedHashMap will automatically remove oldest entries when limit is exceeded
+        // But we can manually trim if memory pressure is detected
+        if (artworkCache.size > MAX_CACHE_SIZE * 0.8) {
+            val iterator = artworkCache.entries.iterator()
+            var removed = 0
+            while (iterator.hasNext() && removed < MAX_CACHE_SIZE / 4) {
+                iterator.next()
+                iterator.remove()
+                removed++
+            }
+        }
+
+        if (failedExtractions.size > MAX_FAILED_CACHE_SIZE * 0.8) {
+            val iterator = failedExtractions.iterator()
+            var removed = 0
+            while (iterator.hasNext() && removed < MAX_FAILED_CACHE_SIZE / 4) {
+                iterator.next()
+                iterator.remove()
+                removed++
+            }
         }
     }
     

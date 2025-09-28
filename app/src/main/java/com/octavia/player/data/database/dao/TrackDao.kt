@@ -52,19 +52,20 @@ interface TrackDao {
 
     @Query(
         """
-        SELECT * FROM tracks 
-        WHERE title LIKE '%' || :query || '%' 
-        OR artist LIKE '%' || :query || '%' 
-        OR album LIKE '%' || :query || '%'
-        OR album_artist LIKE '%' || :query || '%'
-        ORDER BY 
-            CASE 
+        SELECT * FROM tracks
+        WHERE title LIKE :query || '%'
+        OR artist LIKE :query || '%'
+        OR album LIKE :query || '%'
+        OR album_artist LIKE :query || '%'
+        ORDER BY
+            CASE
                 WHEN title LIKE :query || '%' THEN 1
                 WHEN artist LIKE :query || '%' THEN 2
                 WHEN album LIKE :query || '%' THEN 3
                 ELSE 4
             END,
             title ASC
+        LIMIT 100
     """
     )
     fun searchTracks(query: String): Flow<List<Track>>
