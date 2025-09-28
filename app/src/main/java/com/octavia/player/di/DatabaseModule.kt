@@ -37,7 +37,7 @@ object DatabaseModule {
                 // Add migrations here as database evolves
                 OctaviaDatabase.MIGRATION_1_2
             )
-            .fallbackToDestructiveMigration(false) // Only for development - remove for production
+            .fallbackToDestructiveMigration() // Allow destructive migration for development
             .build()
     }
 

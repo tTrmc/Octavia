@@ -52,8 +52,14 @@ abstract class OctaviaDatabase : RoomDatabase() {
          */
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Add the artwork_path column to the tracks table
-                database.execSQL("ALTER TABLE tracks ADD COLUMN artwork_path TEXT")
+                try {
+                    // Add the artwork_path column to the tracks table
+                    database.execSQL("ALTER TABLE tracks ADD COLUMN artwork_path TEXT")
+                } catch (e: Exception) {
+                    // Log the error but don't crash - fallback migration will handle it
+                    android.util.Log.e("OctaviaDatabase", "Migration 1->2 failed", e)
+                    throw e
+                }
             }
         }
     }

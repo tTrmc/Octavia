@@ -60,25 +60,39 @@ class LibraryViewModel @Inject constructor(
 
     fun scanLibrary() {
         viewModelScope.launch {
-            mediaLibraryScanUseCase.scanLibrary(application)
-                .onSuccess { trackCount ->
-                    // Successfully scanned $trackCount tracks
-                }
-                .onFailure { exception ->
-                    // TODO: Handle error state in UI
-                }
+            try {
+                mediaLibraryScanUseCase.scanLibrary(application)
+                    .onSuccess { trackCount ->
+                        // Successfully scanned $trackCount tracks
+                        android.util.Log.i("LibraryViewModel", "Successfully scanned $trackCount tracks")
+                    }
+                    .onFailure { exception ->
+                        android.util.Log.e("LibraryViewModel", "Failed to scan library", exception)
+                        // TODO: Update UI state with error
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Unexpected error during library scan", e)
+            }
         }
     }
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            playbackControlUseCase.playTrack(track)
+            try {
+                playbackControlUseCase.playTrack(track)
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Failed to play track: ${track.displayTitle}", e)
+            }
         }
     }
 
     fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
         viewModelScope.launch {
-            playbackControlUseCase.playTracks(tracks, startIndex)
+            try {
+                playbackControlUseCase.playTracks(tracks, startIndex)
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Failed to play tracks", e)
+            }
         }
     }
 

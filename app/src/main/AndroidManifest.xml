@@ -78,7 +78,7 @@
 
         <!-- Media Playback Service -->
         <service
-            android:name=".presentation.service.MediaPlaybackService"
+            android:name=".data.service.MediaPlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
