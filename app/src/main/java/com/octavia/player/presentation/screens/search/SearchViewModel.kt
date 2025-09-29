@@ -49,7 +49,25 @@ class SearchViewModel @Inject constructor(
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            playbackControlUseCase.playTrack(track)
+            try {
+                // Get current search results to use as queue context
+                val searchResults = uiState.value.searchResults
+                val trackIndex = searchResults.indexOf(track)
+
+                if (trackIndex >= 0 && searchResults.size > 1) {
+                    // Play track within search results context for skip functionality
+                    android.util.Log.d("SearchViewModel", "Playing track '${track.displayTitle}' at index $trackIndex of ${searchResults.size} search results")
+                    playbackControlUseCase.playTracks(searchResults, trackIndex)
+                } else {
+                    // Fallback to single track if not found in search results
+                    android.util.Log.w("SearchViewModel", "Track not found in search results or single result, playing single track: ${track.displayTitle}")
+                    playbackControlUseCase.playTrack(track)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SearchViewModel", "Failed to play track: ${track.displayTitle}", e)
+                // Final fallback
+                playbackControlUseCase.playTrack(track)
+            }
         }
     }
 }

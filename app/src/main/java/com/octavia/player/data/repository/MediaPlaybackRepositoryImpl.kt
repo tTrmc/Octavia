@@ -224,16 +224,38 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     }
 
     override suspend fun skipToNext() {
+        android.util.Log.d("MediaPlayback", "skipToNext() called")
+
+        val currentMediaItemCount = exoPlayer.mediaItemCount
+        val currentMediaItemIndex = exoPlayer.currentMediaItemIndex
+
+        android.util.Log.d("MediaPlayback", "Current queue: $currentMediaItemIndex of $currentMediaItemCount items")
+
         if (exoPlayer.hasNextMediaItem()) {
+            android.util.Log.d("MediaPlayback", "Skipping to next track")
             exoPlayer.seekToNext()
             updateCurrentTrackFromPlayer()
+            android.util.Log.d("MediaPlayback", "Skipped to track ${exoPlayer.currentMediaItemIndex}")
+        } else {
+            android.util.Log.w("MediaPlayback", "No next track available - already at end of queue")
         }
     }
 
     override suspend fun skipToPrevious() {
+        android.util.Log.d("MediaPlayback", "skipToPrevious() called")
+
+        val currentMediaItemCount = exoPlayer.mediaItemCount
+        val currentMediaItemIndex = exoPlayer.currentMediaItemIndex
+
+        android.util.Log.d("MediaPlayback", "Current queue: $currentMediaItemIndex of $currentMediaItemCount items")
+
         if (exoPlayer.hasPreviousMediaItem()) {
+            android.util.Log.d("MediaPlayback", "Skipping to previous track")
             exoPlayer.seekToPrevious()
             updateCurrentTrackFromPlayer()
+            android.util.Log.d("MediaPlayback", "Skipped to track ${exoPlayer.currentMediaItemIndex}")
+        } else {
+            android.util.Log.w("MediaPlayback", "No previous track available - already at beginning of queue")
         }
     }
 
@@ -292,12 +314,16 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
      */
     private fun setQueue(tracks: List<Track>, startIndex: Int) {
         try {
+            android.util.Log.d("MediaPlayback", "setQueue() called with ${tracks.size} tracks, startIndex: $startIndex")
+
             // Validate inputs
             if (tracks.isEmpty()) {
+                android.util.Log.w("MediaPlayback", "setQueue() - tracks list is empty, returning")
                 return
             }
 
             if (startIndex < 0 || startIndex >= tracks.size) {
+                android.util.Log.w("MediaPlayback", "setQueue() - invalid startIndex: $startIndex for ${tracks.size} tracks, returning")
                 return
             }
 
@@ -307,10 +333,12 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
             if (isSameQueue && currentQueue.currentIndex == startIndex) {
                 // Just update the current track without rebuilding queue
+                android.util.Log.d("MediaPlayback", "setQueue() - same queue and index, just updating current track")
                 _currentTrack.value = tracks.getOrNull(startIndex)
                 return
             }
 
+            android.util.Log.d("MediaPlayback", "setQueue() - creating new queue with ${tracks.size} tracks")
             val mediaItems = tracks.map { track ->
                 MediaItem.Builder()
                     .setUri(track.filePath)
@@ -318,6 +346,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
                     .build()
             }
 
+            android.util.Log.d("MediaPlayback", "setQueue() - setting ExoPlayer media items and preparing")
             exoPlayer.setMediaItems(mediaItems, startIndex, 0L)
             exoPlayer.prepare()
 
@@ -335,8 +364,9 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             }
 
             _currentTrack.value = tracks.getOrNull(startIndex)
+            android.util.Log.d("MediaPlayback", "setQueue() - completed successfully, current track: ${tracks.getOrNull(startIndex)?.displayTitle}")
         } catch (e: Exception) {
-            // Only log critical errors
+            android.util.Log.e("MediaPlayback", "setQueue() - error occurred", e)
         }
     }
 

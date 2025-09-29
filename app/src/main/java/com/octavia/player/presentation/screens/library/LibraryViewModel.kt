@@ -83,7 +83,19 @@ class LibraryViewModel @Inject constructor(
     fun playTrack(track: Track) {
         viewModelScope.launch {
             try {
-                playbackControlUseCase.playTrack(track)
+                // Get current track list from UI state
+                val currentTracks = uiState.value.tracks
+                val trackIndex = currentTracks.indexOf(track)
+
+                if (trackIndex >= 0) {
+                    // Play track in context of current track list for proper skip functionality
+                    android.util.Log.d("LibraryViewModel", "Playing track '${track.displayTitle}' at index $trackIndex of ${currentTracks.size} tracks")
+                    playbackControlUseCase.playTracks(currentTracks, trackIndex)
+                } else {
+                    // Fallback to single track if not found in current list
+                    android.util.Log.w("LibraryViewModel", "Track not found in current list, playing single track: ${track.displayTitle}")
+                    playbackControlUseCase.playTrack(track)
+                }
             } catch (e: Exception) {
                 android.util.Log.e("LibraryViewModel", "Failed to play track: ${track.displayTitle}", e)
             }

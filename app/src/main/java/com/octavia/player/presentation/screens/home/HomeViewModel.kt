@@ -108,7 +108,53 @@ class HomeViewModel @Inject constructor(
 
     fun playTrack(track: Track) {
         viewModelScope.launch {
-            playbackControlUseCase.playTrack(track)
+            try {
+                // Get current UI state to determine the best track context
+                val currentState = uiState.value
+
+                // Try to find the track in different contexts for better queue management
+                val contextTracks = when {
+                    // Check if track is in recently played list
+                    currentState.recentlyPlayed.any { it.id == track.id } -> {
+                        android.util.Log.d("HomeViewModel", "Playing track from recently played context")
+                        currentState.recentlyPlayed
+                    }
+                    // Check if track is in favorites
+                    currentState.favoriteTracksPreview.any { it.id == track.id } -> {
+                        android.util.Log.d("HomeViewModel", "Playing track from favorites context")
+                        // Use all tracks for now - getting live favorites is async
+                        currentState.favoriteTracksPreview
+                    }
+                    // Check if track is in hi-res preview
+                    currentState.hiResTracksPreview.any { it.id == track.id } -> {
+                        android.util.Log.d("HomeViewModel", "Playing track from hi-res context")
+                        // Use all tracks for now - getting live hi-res is async
+                        currentState.hiResTracksPreview
+                    }
+                    // Fallback to all tracks for full library context
+                    else -> {
+                        android.util.Log.d("HomeViewModel", "Playing track with full library context")
+                        libraryData.value.tracks
+                    }
+                }
+
+                // Find track index in the selected context
+                val trackIndex = contextTracks.indexOf(track)
+
+                if (trackIndex >= 0 && contextTracks.size > 1) {
+                    // Play with queue context for skip functionality
+                    android.util.Log.d("HomeViewModel", "Playing track '${track.displayTitle}' at index $trackIndex of ${contextTracks.size} tracks")
+                    playbackControlUseCase.playTracks(contextTracks, trackIndex)
+                } else {
+                    // Fallback to single track if context is too small or track not found
+                    android.util.Log.w("HomeViewModel", "Using single track playback for: ${track.displayTitle}")
+                    playbackControlUseCase.playTrack(track)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to play track: ${track.displayTitle}", e)
+                // Final fallback
+                playbackControlUseCase.playTrack(track)
+            }
         }
     }
 
