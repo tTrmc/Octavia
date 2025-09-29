@@ -131,6 +131,23 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun syncCachedArtwork() {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _message.value = "Syncing cached artwork to database..."
+
+                val updatedCount = extractArtworkUseCase.syncCachedArtworkToDatabase()
+                _message.value = "Artwork sync completed! Updated $updatedCount tracks."
+                loadCacheStats()
+            } catch (e: Exception) {
+                _message.value = "Artwork sync failed: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }

@@ -234,6 +234,13 @@ fun SettingsScreen(
                     )
 
                     SettingsItem(
+                        title = "Sync Cached Artwork",
+                        subtitle = "Update database with already cached artwork",
+                        icon = Icons.Default.SkipNext,
+                        onClick = { viewModel.syncCachedArtwork() }
+                    )
+
+                    SettingsItem(
                         title = "Clear Artwork Cache",
                         subtitle = buildString {
                             append("Remove cached album artwork")

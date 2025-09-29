@@ -57,7 +57,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             val stats = mediaLibraryScanUseCase.getLibraryStats()
             if (stats.totalTracks == 0) {
-                scanLibrary()
+                scanLibrary() // Now uses scanLibraryWithArtwork
             }
         }
     }
@@ -65,10 +65,10 @@ class LibraryViewModel @Inject constructor(
     fun scanLibrary() {
         viewModelScope.launch {
             try {
-                mediaLibraryScanUseCase.scanLibrary(application)
+                mediaLibraryScanUseCase.scanLibraryWithArtwork(application)
                     .onSuccess { trackCount ->
                         // Successfully scanned $trackCount tracks
-                        android.util.Log.i("LibraryViewModel", "Successfully scanned $trackCount tracks")
+                        android.util.Log.i("LibraryViewModel", "Successfully scanned $trackCount tracks with artwork")
                     }
                     .onFailure { exception ->
                         android.util.Log.e("LibraryViewModel", "Failed to scan library", exception)
