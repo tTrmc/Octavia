@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -37,7 +38,8 @@ import javax.inject.Singleton
 @Singleton
 class MediaPlaybackRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val exoPlayer: ExoPlayer
+    private val exoPlayer: ExoPlayer,
+    @Named("ApplicationScope") private val applicationScope: CoroutineScope
 ) : MediaPlaybackRepository {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -64,11 +66,11 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     // Safety switch to disable audio focus temporarily if issues persist
     private val audioFocusEnabled = false
 
-    // Coroutine scope for position updates
-    private val positionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    // Use injected application scope for position updates to ensure proper lifecycle management
 
     // Position updates flow - lifecycle-aware and event-driven with smart intervals
     override val currentPosition: Flow<Long> = callbackFlow {
+        android.util.Log.d("MediaPlayback", "Position flow started")
         var positionUpdateRunnable: Runnable? = null
         var handler: android.os.Handler? = null
         var isActive = true
@@ -76,6 +78,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         val updatePosition = {
             if (isActive) {
                 val position = exoPlayer.currentPosition
+                android.util.Log.v("MediaPlayback", "Position update: $position")
                 trySend(position)
             }
         }
@@ -104,11 +107,13 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                android.util.Log.d("MediaPlayback", "Playing state changed: $isPlaying")
                 updatePosition() // Immediate update on state change
                 schedulePositionUpdate() // Always schedule updates (interval will adjust based on playing state)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
+                android.util.Log.d("MediaPlayback", "Playback state changed: $state")
                 updatePosition() // Update position on state changes
                 when (state) {
                     Player.STATE_ENDED, Player.STATE_IDLE -> {
@@ -130,6 +135,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         schedulePositionUpdate() // Always start scheduling updates (interval adapts to play state)
 
         awaitClose {
+            android.util.Log.d("MediaPlayback", "Position flow closed")
             isActive = false
             handler?.removeCallbacks(positionUpdateRunnable ?: return@awaitClose)
             exoPlayer.removeListener(listener)
@@ -137,7 +143,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             positionUpdateRunnable = null
         }
     }.stateIn(
-        scope = positionScope,
+        scope = applicationScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
         initialValue = 0L
     )
@@ -276,8 +282,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         playerListener?.let { exoPlayer.removeListener(it) }
         playerListener = null
 
-        // Cancel position scope
-        positionScope.cancel()
+        // Position flow is managed by applicationScope, no manual cleanup needed
 
         exoPlayer.release()
     }
