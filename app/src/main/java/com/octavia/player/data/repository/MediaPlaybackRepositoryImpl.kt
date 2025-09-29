@@ -20,8 +20,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,40 +64,53 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     // Safety switch to disable audio focus temporarily if issues persist
     private val audioFocusEnabled = false
 
-    // Position updates flow - lifecycle-aware and event-driven
+    // Coroutine scope for position updates
+    private val positionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Position updates flow - lifecycle-aware and event-driven with smart intervals
     override val currentPosition: Flow<Long> = callbackFlow {
         var positionUpdateRunnable: Runnable? = null
         var handler: android.os.Handler? = null
 
         val updatePosition = {
-            trySend(exoPlayer.currentPosition)
+            val position = exoPlayer.currentPosition
+            trySend(position)
+            // Temporary debug logging - can be removed in production
+            android.util.Log.d("PositionUpdate", "Position: ${position}ms, Playing: ${exoPlayer.isPlaying}")
         }
 
         fun schedulePositionUpdate() {
             handler?.removeCallbacks(positionUpdateRunnable ?: return)
-            if (exoPlayer.isPlaying) {
-                positionUpdateRunnable = Runnable {
-                    updatePosition()
-                    schedulePositionUpdate()
-                }
-                handler?.postDelayed(positionUpdateRunnable!!, 1000) // Update every second when playing
+
+            // Smart update intervals: fast when playing, slower when paused
+            val updateInterval = if (exoPlayer.isPlaying) {
+                100L // Update every 100ms when playing for smooth progress
+            } else {
+                5000L // Update every 5 seconds when paused to keep position in sync
             }
+
+            positionUpdateRunnable = Runnable {
+                updatePosition()
+                schedulePositionUpdate()
+            }
+            handler?.postDelayed(positionUpdateRunnable!!, updateInterval)
         }
 
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 updatePosition() // Immediate update on state change
-                if (isPlaying) {
-                    schedulePositionUpdate()
-                } else {
-                    handler?.removeCallbacks(positionUpdateRunnable ?: return)
-                }
+                schedulePositionUpdate() // Always schedule updates (interval will adjust based on playing state)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
                 updatePosition() // Update position on state changes
-                if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
-                    handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                when (state) {
+                    Player.STATE_ENDED, Player.STATE_IDLE -> {
+                        handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                    }
+                    else -> {
+                        schedulePositionUpdate() // Keep updates going for other states
+                    }
                 }
             }
         }
@@ -101,11 +119,9 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         handler = android.os.Handler(android.os.Looper.getMainLooper())
         exoPlayer.addListener(listener)
 
-        // Send initial position
+        // Send initial position and always start updates
         updatePosition()
-        if (exoPlayer.isPlaying) {
-            schedulePositionUpdate()
-        }
+        schedulePositionUpdate() // Always start scheduling updates (interval adapts to play state)
 
         awaitClose {
             handler?.removeCallbacks(positionUpdateRunnable ?: return@awaitClose)
@@ -113,7 +129,11 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             handler = null
             positionUpdateRunnable = null
         }
-    }.flowOn(kotlinx.coroutines.Dispatchers.Main)
+    }.stateIn(
+        scope = positionScope,
+        started = kotlinx.coroutines.flow.SharingStarted.Eagerly,
+        initialValue = 0L
+    )
 
     // Audio focus change listener
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -248,6 +268,10 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         // Remove listener before releasing
         playerListener?.let { exoPlayer.removeListener(it) }
         playerListener = null
+
+        // Cancel position scope
+        positionScope.cancel()
+
         exoPlayer.release()
     }
 

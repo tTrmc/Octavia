@@ -43,12 +43,19 @@ class HomeViewModel @Inject constructor(
                 trackLists to currentTrack
             }
             .combine(mediaPlaybackRepository.playerState) { (trackLists, currentTrack), playerState ->
+                (trackLists to currentTrack) to playerState
+            }
+            .combine(mediaPlaybackRepository.currentPosition) { combined, currentPosition ->
+                val trackListsAndCurrentTrack = combined.first
+                val playerState = combined.second
+                val trackLists = trackListsAndCurrentTrack.first
+                val currentTrack = trackListsAndCurrentTrack.second
                 val (tracks, recentlyPlayed, recentlyAdded, favorites, hiRes) = trackLists
-                
+
                 // Calculate stats from tracks
                 val albums = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
                 val artists = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
-                
+
                 HomeUiState(
                     recentlyPlayed = recentlyPlayed,
                     recentlyAdded = recentlyAdded.take(10),
@@ -57,6 +64,9 @@ class HomeViewModel @Inject constructor(
                     recentlyAddedAlbums = emptyList(), // TODO: Implement album data
                     currentlyPlayingTrack = currentTrack,
                     isPlaying = playerState.isPlaying,
+                    currentPosition = currentPosition,
+                    duration = playerState.duration,
+                    progress = if (playerState.duration > 0) currentPosition.toFloat() / playerState.duration else 0f,
                     trackCount = tracks.size,
                     albumCount = albums,
                     artistCount = artists,
@@ -65,7 +75,7 @@ class HomeViewModel @Inject constructor(
                 )
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
+                started = SharingStarted.Eagerly,
                 initialValue = HomeUiState()
             )
 
@@ -120,6 +130,9 @@ data class HomeUiState(
     val recentlyAddedAlbums: List<Album> = emptyList(),
     val currentlyPlayingTrack: Track? = null,
     val isPlaying: Boolean = false,
+    val currentPosition: Long = 0L,
+    val duration: Long = 0L,
+    val progress: Float = 0f,
     val trackCount: Int = 0,
     val albumCount: Int = 0,
     val artistCount: Int = 0,

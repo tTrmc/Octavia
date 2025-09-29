@@ -105,6 +105,7 @@ fun HomeScreen(
                     MiniPlayer(
                         track = uiState.currentlyPlayingTrack,
                         isPlaying = uiState.isPlaying,
+                        progress = uiState.progress,
                         onPlayPause = { viewModel.togglePlayPause() },
                         onNext = { viewModel.skipToNext() },
                         onPrevious = { viewModel.skipToPrevious() },

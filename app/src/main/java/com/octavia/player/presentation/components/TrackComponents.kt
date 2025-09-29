@@ -28,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -336,6 +337,7 @@ fun AlbumCard(
 fun MiniPlayer(
     track: Track?,
     isPlaying: Boolean,
+    progress: Float = 0f,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -352,12 +354,13 @@ fun MiniPlayer(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             // Album art
             Box(
                 modifier = Modifier
@@ -442,6 +445,15 @@ fun MiniPlayer(
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
+            }
+
+            // Progress bar
+            LinearProgressIndicator(
+                progress = progress.coerceIn(0f, 1f),
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            )
         }
     }
 }
