@@ -7,14 +7,18 @@ import android.media.MediaMetadataRetriever
 import android.util.Log
 import com.octavia.player.data.model.Track
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
 /**
- * Utility class for extracting and managing album artwork
- * Optimized for performance with better caching strategy
+ * Centralized artwork extraction and management service
+ * Handles extraction, caching, database updates, and progress reporting
+ * Optimized for performance with intelligent caching strategy
  */
 object ArtworkExtractor {
 
@@ -24,10 +28,10 @@ object ArtworkExtractor {
     private const val MAX_CACHE_SIZE = 500 // Maximum number of cached items
     private const val MAX_FAILED_CACHE_SIZE = 100 // Maximum failed extractions to remember
 
-    // LRU cache for artwork paths with size limit
-    private val artworkCache = object : LinkedHashMap<String, String?>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String?>?): Boolean {
-            return size > MAX_CACHE_SIZE
+    // Use proper LruCache instead of LinkedHashMap for better memory management
+    private val artworkCache = object : android.util.LruCache<String, String?>(MAX_CACHE_SIZE) {
+        override fun sizeOf(key: String, value: String?): Int {
+            return 1 // Each cache entry counts as 1 unit
         }
     }
 
@@ -51,7 +55,7 @@ object ArtworkExtractor {
         val cacheKey = getCacheKey(albumId, filePath)
 
         // Check in-memory cache first
-        artworkCache[cacheKey]?.let { return it }
+        artworkCache.get(cacheKey)?.let { return it }
 
         // Check if we've already failed to extract this artwork
         if (failedExtractions.contains(cacheKey)) {
@@ -62,7 +66,7 @@ object ArtworkExtractor {
             // First try to find cached artwork on disk
             val cachedPath = getCachedArtworkPath(context, albumId, filePath)
             if (cachedPath != null && File(cachedPath).exists()) {
-                artworkCache[cacheKey] = cachedPath
+                artworkCache.put(cacheKey, cachedPath)
                 return cachedPath
             }
 
@@ -72,7 +76,7 @@ object ArtworkExtractor {
                 // For external files, just cache the path directly if it's a reasonable size
                 val externalFile = File(externalArtwork)
                 if (externalFile.length() < 10 * 1024 * 1024) { // Skip very large files (>10MB)
-                    artworkCache[cacheKey] = externalArtwork
+                    artworkCache.put(cacheKey, externalArtwork)
                     return externalArtwork
                 }
             }
@@ -82,7 +86,7 @@ object ArtworkExtractor {
             if (embeddedArtwork != null) {
                 val savedPath = saveArtworkToCache(context, embeddedArtwork, albumId, filePath)
                 if (savedPath != null) {
-                    artworkCache[cacheKey] = savedPath
+                    artworkCache.put(cacheKey, savedPath)
                     return savedPath
                 }
             }
@@ -93,7 +97,7 @@ object ArtworkExtractor {
         
         // Cache the failure to avoid repeated attempts
         failedExtractions.add(cacheKey)
-        artworkCache[cacheKey] = null
+        artworkCache.put(cacheKey, null)
         return null
     }
     
@@ -254,7 +258,7 @@ object ArtworkExtractor {
                 cacheDir.deleteRecursively()
             }
             // Clear in-memory caches
-            artworkCache.clear()
+            artworkCache.evictAll()
             failedExtractions.clear()
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing artwork cache", e)
@@ -266,16 +270,9 @@ object ArtworkExtractor {
      */
     @Synchronized
     fun trimMemoryCache() {
-        // The LinkedHashMap will automatically remove oldest entries when limit is exceeded
-        // But we can manually trim if memory pressure is detected
-        if (artworkCache.size > MAX_CACHE_SIZE * 0.8) {
-            val iterator = artworkCache.entries.iterator()
-            var removed = 0
-            while (iterator.hasNext() && removed < MAX_CACHE_SIZE / 4) {
-                iterator.next()
-                iterator.remove()
-                removed++
-            }
+        // LruCache automatically handles memory trimming, but we can force eviction if needed
+        if (artworkCache.size() > MAX_CACHE_SIZE * 0.8) {
+            artworkCache.trimToSize(MAX_CACHE_SIZE / 2)
         }
 
         if (failedExtractions.size > MAX_FAILED_CACHE_SIZE * 0.8) {
@@ -295,7 +292,7 @@ object ArtworkExtractor {
     suspend fun preloadArtwork(context: Context, tracks: List<Track>) = withContext(Dispatchers.IO) {
         // Group tracks by album to avoid duplicate work
         val albumGroups = tracks.groupBy { it.albumId }
-        
+
         albumGroups.forEach { (albumId, albumTracks) ->
             if (albumTracks.isNotEmpty()) {
                 val firstTrack = albumTracks.first()
@@ -303,4 +300,165 @@ object ArtworkExtractor {
             }
         }
     }
+
+    /**
+     * Extract artwork for a single track with retry logic and error handling
+     * This replaces the repository layer functionality
+     */
+    suspend fun extractArtworkForTrack(context: Context, track: Track, maxRetries: Int = 2): Result<String?> = withContext(Dispatchers.IO) {
+        var lastException: Exception? = null
+
+        repeat(maxRetries + 1) { attempt ->
+            try {
+                val artworkPath = extractArtwork(context, track.filePath, track.albumId)
+                return@withContext Result.success(artworkPath)
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "Attempt ${attempt + 1} failed for track ${track.id}: ${e.message}")
+                if (attempt < maxRetries) {
+                    // Wait before retrying
+                    kotlinx.coroutines.delay(500L * (attempt + 1))
+                }
+            }
+        }
+
+        return@withContext Result.failure(lastException ?: Exception("Unknown error"))
+    }
+
+    /**
+     * Extract artwork for multiple tracks with progress reporting
+     * This replaces the repository and use case layer functionality
+     */
+    fun extractArtworkForTracks(context: Context, tracks: List<Track>): Flow<ArtworkExtractionProgress> = flow {
+        var completed = 0
+        val total = tracks.size
+
+        emit(ArtworkExtractionProgress(completed = 0, total = total))
+
+        for (track in tracks) {
+            emit(ArtworkExtractionProgress(
+                completed = completed,
+                total = total,
+                currentTrack = track
+            ))
+
+            val result = extractArtworkForTrack(context, track, maxRetries = 2)
+
+            if (result.isFailure) {
+                emit(ArtworkExtractionProgress(
+                    completed = completed,
+                    total = total,
+                    currentTrack = track,
+                    error = "Failed to extract artwork: ${result.exceptionOrNull()?.message}"
+                ))
+            }
+
+            completed++
+            emit(ArtworkExtractionProgress(
+                completed = completed,
+                total = total,
+                currentTrack = track
+            ))
+        }
+
+        emit(ArtworkExtractionProgress(
+            completed = completed,
+            total = total,
+            isCompleted = true
+        ))
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Get artwork cache statistics
+     */
+    suspend fun getArtworkCacheStats(
+        context: Context,
+        tracksWithArtwork: Int = 0,
+        tracksWithoutArtwork: Int = 0
+    ): ArtworkCacheStats = withContext(Dispatchers.IO) {
+        try {
+            val cacheDir = File(context.cacheDir, ARTWORK_CACHE_DIR)
+            val cachedFiles = if (cacheDir.exists()) {
+                cacheDir.listFiles()?.size ?: 0
+            } else {
+                0
+            }
+
+            val cacheSize = if (cacheDir.exists()) {
+                cacheDir.walkTopDown().filter { it.isFile }.map { it.length() }.sum()
+            } else {
+                0L
+            }
+
+            ArtworkCacheStats(
+                totalCachedFiles = cachedFiles,
+                cacheSize = cacheSize,
+                memoryCache = artworkCache.size(),
+                failedExtractions = failedExtractions.size,
+                tracksWithArtwork = tracksWithArtwork,
+                tracksWithoutArtwork = tracksWithoutArtwork
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get cache stats", e)
+            ArtworkCacheStats(
+                totalCachedFiles = 0,
+                cacheSize = 0L,
+                memoryCache = 0,
+                failedExtractions = 0,
+                tracksWithArtwork = 0,
+                tracksWithoutArtwork = 0
+            )
+        }
+    }
+
+    /**
+     * Validate and cleanup broken artwork paths
+     */
+    suspend fun validateAndCleanupArtwork(context: Context): Int = withContext(Dispatchers.IO) {
+        try {
+            var cleanedCount = 0
+            val cacheDir = File(context.cacheDir, ARTWORK_CACHE_DIR)
+
+            if (cacheDir.exists()) {
+                cacheDir.listFiles()?.forEach { file ->
+                    if (!file.exists() || file.length() == 0L) {
+                        file.delete()
+                        cleanedCount++
+                    }
+                }
+            }
+
+            Log.i(TAG, "Cleaned up $cleanedCount invalid artwork files")
+            cleanedCount
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to validate artwork", e)
+            0
+        }
+    }
 }
+
+/**
+ * Progress data for artwork extraction operations
+ */
+data class ArtworkExtractionProgress(
+    val completed: Int,
+    val total: Int,
+    val currentTrack: Track? = null,
+    val isCompleted: Boolean = false,
+    val error: String? = null
+) {
+    val progressPercentage: Float
+        get() = if (total > 0) (completed.toFloat() / total.toFloat()) * 100f else 0f
+}
+
+/**
+ * Artwork cache statistics
+ */
+data class ArtworkCacheStats(
+    val totalCachedFiles: Int,
+    val cacheSize: Long,
+    val memoryCache: Int = 0,
+    val failedExtractions: Int = 0,
+    val tracksWithArtwork: Int = 0,
+    val tracksWithoutArtwork: Int = 0
+)

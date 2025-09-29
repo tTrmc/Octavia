@@ -49,4 +49,8 @@ interface TrackRepository {
     
     // File management
     suspend fun isTrackUpToDate(filePath: String, lastModified: Long): Boolean
+
+    // Artwork management
+    suspend fun getTracksWithoutArtwork(limit: Int = 100): List<Track>
+    suspend fun clearAllArtworkPaths()
 }

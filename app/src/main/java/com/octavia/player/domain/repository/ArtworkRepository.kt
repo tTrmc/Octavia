@@ -1,6 +1,8 @@
 package com.octavia.player.domain.repository
 
 import com.octavia.player.data.model.Track
+import com.octavia.player.data.scanner.ArtworkExtractionProgress
+import com.octavia.player.data.scanner.ArtworkCacheStats
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -53,27 +55,3 @@ interface ArtworkRepository {
      */
     suspend fun validateAndCleanupArtwork(): Int
 }
-
-/**
- * Progress data for artwork extraction operations
- */
-data class ArtworkExtractionProgress(
-    val completed: Int,
-    val total: Int,
-    val currentTrack: Track? = null,
-    val isCompleted: Boolean = false,
-    val error: String? = null
-) {
-    val progressPercentage: Float
-        get() = if (total > 0) (completed.toFloat() / total.toFloat()) * 100f else 0f
-}
-
-/**
- * Artwork cache statistics
- */
-data class ArtworkCacheStats(
-    val totalCachedFiles: Int,
-    val cacheSize: Long,
-    val tracksWithArtwork: Int,
-    val tracksWithoutArtwork: Int
-)

@@ -1,20 +1,20 @@
 package com.octavia.player.domain.usecase
 
 import android.content.Context
-import com.octavia.player.data.scanner.MediaLibraryScanner
+import com.octavia.player.data.scanner.MediaScanner
 import com.octavia.player.domain.repository.TrackRepository
 import javax.inject.Inject
 
 /**
  * Use case for scanning and updating the media library
+ * Now uses the consolidated MediaScanner for better performance
  */
 class MediaLibraryScanUseCase @Inject constructor(
-    private val trackRepository: TrackRepository,
-    private val mediaLibraryScanner: MediaLibraryScanner
+    private val trackRepository: TrackRepository
 ) {
     
     suspend fun scanLibrary(context: Context): Result<Int> {
-        return mediaLibraryScanner.scanLibrary(context, includeArtwork = false)
+        return MediaScanner.scanLibrary(context, extractArtworkInBackground = false)
             .mapCatching { tracks ->
                 if (tracks.isNotEmpty()) {
                     trackRepository.insertTracks(tracks)
@@ -24,9 +24,9 @@ class MediaLibraryScanUseCase @Inject constructor(
                 }
             }
     }
-    
+
     suspend fun scanLibraryWithArtwork(context: Context): Result<Int> {
-        return mediaLibraryScanner.scanLibrary(context, includeArtwork = true)
+        return MediaScanner.scanLibrary(context, extractArtworkInBackground = true)
             .mapCatching { tracks ->
                 if (tracks.isNotEmpty()) {
                     trackRepository.insertTracks(tracks)
@@ -47,7 +47,7 @@ class MediaLibraryScanUseCase @Inject constructor(
     }
     
     fun clearArtworkCache(context: Context) {
-        mediaLibraryScanner.clearArtworkCache(context)
+        MediaScanner.clearArtworkCache(context)
     }
     
     suspend fun getLibraryStats(): LibraryStats {

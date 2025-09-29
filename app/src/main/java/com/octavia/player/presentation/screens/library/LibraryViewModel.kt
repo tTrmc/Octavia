@@ -34,12 +34,16 @@ class LibraryViewModel @Inject constructor(
     val uiState: StateFlow<LibraryUiState> = combine(
         getTracksUseCase.getAllTracks(),
         mediaPlaybackRepository.currentTrack,
-        mediaPlaybackRepository.playerState
-    ) { tracks, currentTrack, playerState ->
+        mediaPlaybackRepository.playerState,
+        mediaPlaybackRepository.currentPosition
+    ) { tracks, currentTrack, playerState, currentPosition ->
         LibraryUiState(
             tracks = tracks,
             currentlyPlayingTrack = currentTrack,
             isPlaying = playerState.isPlaying,
+            currentPosition = currentPosition,
+            duration = playerState.duration,
+            progress = if (playerState.duration > 0) currentPosition.toFloat() / playerState.duration else 0f,
             isLoading = false
         )
     }.stateIn(
@@ -129,6 +133,9 @@ data class LibraryUiState(
     val playlists: List<Playlist> = emptyList(),
     val currentlyPlayingTrack: Track? = null,
     val isPlaying: Boolean = false,
+    val currentPosition: Long = 0L,
+    val duration: Long = 0L,
+    val progress: Float = 0f,
     val isLoading: Boolean = true,
     val error: String? = null
 )

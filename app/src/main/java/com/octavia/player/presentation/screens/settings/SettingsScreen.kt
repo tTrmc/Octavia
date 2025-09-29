@@ -458,7 +458,7 @@ private fun SettingsItem(
 @Composable
 private fun ProgressSection(
     isLoading: Boolean,
-    artworkProgress: com.octavia.player.domain.repository.ArtworkExtractionProgress?
+    artworkProgress: com.octavia.player.data.scanner.ArtworkExtractionProgress?
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),

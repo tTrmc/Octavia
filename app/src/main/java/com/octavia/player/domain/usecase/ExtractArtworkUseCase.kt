@@ -1,16 +1,22 @@
 package com.octavia.player.domain.usecase
 
+import android.content.Context
 import com.octavia.player.data.model.Track
-import com.octavia.player.domain.repository.ArtworkRepository
-import com.octavia.player.domain.repository.ArtworkExtractionProgress
+import com.octavia.player.data.scanner.ArtworkExtractor
+import com.octavia.player.data.scanner.ArtworkExtractionProgress
+import com.octavia.player.data.scanner.ArtworkCacheStats
+import com.octavia.player.domain.repository.TrackRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 /**
  * Use case for extracting artwork from music files
+ * Now directly uses ArtworkExtractor for better performance
  */
 class ExtractArtworkUseCase @Inject constructor(
-    private val artworkRepository: ArtworkRepository
+    @ApplicationContext private val context: Context,
+    private val trackRepository: TrackRepository
 ) {
 
     /**
@@ -20,22 +26,15 @@ class ExtractArtworkUseCase @Inject constructor(
      * @return The artwork path if successful, null otherwise
      */
     suspend fun extractForTrack(track: Track, maxRetries: Int = 2): Result<String?> {
-        var lastException: Exception? = null
+        val result = ArtworkExtractor.extractArtworkForTrack(context, track, maxRetries)
 
-        repeat(maxRetries + 1) { attempt ->
-            try {
-                val artworkPath = artworkRepository.extractArtworkForTrack(track)
-                return Result.success(artworkPath)
-            } catch (e: Exception) {
-                lastException = e
-                if (attempt < maxRetries) {
-                    // Wait a bit before retrying
-                    kotlinx.coroutines.delay(500L * (attempt + 1))
-                }
-            }
+        // Update database if successful
+        result.getOrNull()?.let { artworkPath ->
+            val updatedTrack = track.copy(artworkPath = artworkPath)
+            trackRepository.updateTrack(updatedTrack)
         }
 
-        return Result.failure(lastException ?: Exception("Unknown error"))
+        return result
     }
 
     /**
@@ -44,7 +43,7 @@ class ExtractArtworkUseCase @Inject constructor(
      * @return Flow of progress updates
      */
     fun extractForTracks(tracks: List<Track>): Flow<ArtworkExtractionProgress> {
-        return artworkRepository.extractArtworkForTracks(tracks)
+        return ArtworkExtractor.extractArtworkForTracks(context, tracks)
     }
 
     /**
@@ -53,25 +52,39 @@ class ExtractArtworkUseCase @Inject constructor(
      * @return Flow of progress updates
      */
     suspend fun extractForTracksWithoutArtwork(limit: Int = 100): Flow<ArtworkExtractionProgress> {
-        val tracksWithoutArtwork = artworkRepository.getTracksWithoutArtwork(limit)
-        return artworkRepository.extractArtworkForTracks(tracksWithoutArtwork)
+        val tracksWithoutArtwork = trackRepository.getTracksWithoutArtwork(limit)
+        return ArtworkExtractor.extractArtworkForTracks(context, tracksWithoutArtwork)
     }
 
     /**
      * Get artwork cache statistics
      */
-    suspend fun getCacheStats() = artworkRepository.getArtworkCacheStats()
+    suspend fun getCacheStats(): ArtworkCacheStats {
+        val totalTracks = trackRepository.getTrackCount()
+        val tracksWithoutArtwork = trackRepository.getTracksWithoutArtwork(1000).size
+        val tracksWithArtwork = totalTracks - tracksWithoutArtwork
+
+        return ArtworkExtractor.getArtworkCacheStats(
+            context = context,
+            tracksWithArtwork = tracksWithArtwork,
+            tracksWithoutArtwork = tracksWithoutArtwork
+        )
+    }
 
     /**
      * Clear artwork cache
      */
-    suspend fun clearCache() = artworkRepository.clearArtworkCache()
+    suspend fun clearCache() {
+        ArtworkExtractor.clearArtworkCache(context)
+        // Also clear from database
+        trackRepository.clearAllArtworkPaths()
+    }
 
     /**
      * Validate and cleanup broken artwork paths
      * @return Number of invalid paths cleaned up
      */
     suspend fun validateAndCleanup(): Int {
-        return artworkRepository.validateAndCleanupArtwork()
+        return ArtworkExtractor.validateAndCleanupArtwork(context)
     }
 }

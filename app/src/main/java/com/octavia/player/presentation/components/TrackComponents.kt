@@ -33,6 +33,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,15 +66,24 @@ fun TrackItem(
     isPlaying: Boolean = false,
     onFavoriteClick: ((Track) -> Unit)? = null
 ) {
+    // Cache expensive calculations to prevent recomposition
+    val surfaceColor = if (isPlaying)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+    else
+        Color.Transparent
+
+    val textColor = if (isPlaying)
+        MaterialTheme.colorScheme.primary
+    else
+        MaterialTheme.colorScheme.onSurface
+
+    val isLossless = remember(track.isLossless) { track.isLossless }
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp),
-        color = if (isPlaying) 
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
-        else 
-            Color.Transparent,
+        color = surfaceColor,
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -148,10 +160,7 @@ fun TrackItem(
                     text = track.displayTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = if (isPlaying) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
-                        MaterialTheme.colorScheme.onSurface,
+                    color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -160,7 +169,7 @@ fun TrackItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (showQuality && isLosslessFormat(track)) {
+                    if (showQuality && isLossless) {
                         Surface(
                             color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
                             shape = RoundedCornerShape(4.dp)

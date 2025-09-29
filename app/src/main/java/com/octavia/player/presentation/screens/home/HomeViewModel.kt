@@ -25,59 +25,82 @@ class HomeViewModel @Inject constructor(
     private val mediaPlaybackRepository: MediaPlaybackRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<HomeUiState> =
-        getTracksUseCase.getAllTracks()
-            .combine(getTracksUseCase.getRecentlyPlayedTracks(10)) { tracks, recentlyPlayed ->
-                tracks to recentlyPlayed
-            }
-            .combine(getTracksUseCase.getRecentlyAddedTracks()) { (tracks, recentlyPlayed), recentlyAdded ->
-                Triple(tracks, recentlyPlayed, recentlyAdded)
-            }
-            .combine(getTracksUseCase.getFavoriteTracks()) { (tracks, recentlyPlayed, recentlyAdded), favorites ->
-                listOf(tracks, recentlyPlayed, recentlyAdded, favorites)
-            }
-            .combine(getTracksUseCase.getHiResTracks()) { trackLists, hiRes ->
-                trackLists + listOf(hiRes)
-            }
-            .combine(mediaPlaybackRepository.currentTrack) { trackLists, currentTrack ->
-                trackLists to currentTrack
-            }
-            .combine(mediaPlaybackRepository.playerState) { (trackLists, currentTrack), playerState ->
-                (trackLists to currentTrack) to playerState
-            }
-            .combine(mediaPlaybackRepository.currentPosition) { combined, currentPosition ->
-                val trackListsAndCurrentTrack = combined.first
-                val playerState = combined.second
-                val trackLists = trackListsAndCurrentTrack.first
-                val currentTrack = trackListsAndCurrentTrack.second
-                val (tracks, recentlyPlayed, recentlyAdded, favorites, hiRes) = trackLists
+    // Separate the library data (slow-changing) from playback state (fast-changing)
+    private val libraryData: StateFlow<LibraryData> = combine(
+        getTracksUseCase.getAllTracks(),
+        getTracksUseCase.getRecentlyPlayedTracks(10),
+        getTracksUseCase.getRecentlyAddedTracks(),
+        getTracksUseCase.getFavoriteTracks(),
+        getTracksUseCase.getHiResTracks()
+    ) { tracks, recentlyPlayed, recentlyAdded, favorites, hiRes ->
+        // Cache expensive calculations
+        val albumCount = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
+        val artistCount = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
+        val totalDurationMs = tracks.sumOf { it.durationMs }
 
-                // Calculate stats from tracks
-                val albums = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
-                val artists = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
+        LibraryData(
+            tracks = tracks,
+            recentlyPlayed = recentlyPlayed,
+            recentlyAdded = recentlyAdded.take(10),
+            favoriteTracksPreview = favorites.take(5),
+            hiResTracksPreview = hiRes.take(5),
+            trackCount = tracks.size,
+            albumCount = albumCount,
+            artistCount = artistCount,
+            totalDuration = formatDuration(totalDurationMs)
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = LibraryData()
+    )
 
-                HomeUiState(
-                    recentlyPlayed = recentlyPlayed,
-                    recentlyAdded = recentlyAdded.take(10),
-                    favoriteTracksPreview = favorites.take(5),
-                    hiResTracksPreview = hiRes.take(5),
-                    recentlyAddedAlbums = emptyList(), // TODO: Implement album data
-                    currentlyPlayingTrack = currentTrack,
-                    isPlaying = playerState.isPlaying,
-                    currentPosition = currentPosition,
-                    duration = playerState.duration,
-                    progress = if (playerState.duration > 0) currentPosition.toFloat() / playerState.duration else 0f,
-                    trackCount = tracks.size,
-                    albumCount = albums,
-                    artistCount = artists,
-                    playlistCount = 0, // TODO: Implement playlists
-                    totalDuration = formatDuration(tracks.sumOf { it.durationMs })
-                )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.Eagerly,
-                initialValue = HomeUiState()
-            )
+    // Separate playback state (fast-changing)
+    private val playbackState: StateFlow<PlaybackData> = combine(
+        mediaPlaybackRepository.currentTrack,
+        mediaPlaybackRepository.playerState,
+        mediaPlaybackRepository.currentPosition
+    ) { currentTrack, playerState, currentPosition ->
+        PlaybackData(
+            currentlyPlayingTrack = currentTrack,
+            isPlaying = playerState.isPlaying,
+            currentPosition = currentPosition,
+            duration = playerState.duration,
+            progress = if (playerState.duration > 0) currentPosition.toFloat() / playerState.duration else 0f
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = PlaybackData()
+    )
+
+    // Combine only when needed
+    val uiState: StateFlow<HomeUiState> = combine(
+        libraryData,
+        playbackState
+    ) { library, playback ->
+        HomeUiState(
+            recentlyPlayed = library.recentlyPlayed,
+            recentlyAdded = library.recentlyAdded,
+            favoriteTracksPreview = library.favoriteTracksPreview,
+            hiResTracksPreview = library.hiResTracksPreview,
+            recentlyAddedAlbums = emptyList(), // TODO: Implement album data
+            currentlyPlayingTrack = playback.currentlyPlayingTrack,
+            isPlaying = playback.isPlaying,
+            currentPosition = playback.currentPosition,
+            duration = playback.duration,
+            progress = playback.progress,
+            trackCount = library.trackCount,
+            albumCount = library.albumCount,
+            artistCount = library.artistCount,
+            playlistCount = 0, // TODO: Implement playlists
+            totalDuration = library.totalDuration
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = HomeUiState()
+    )
 
     init {
         // Stats will be loaded separately if needed
@@ -118,6 +141,32 @@ class HomeViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * Cached library data (slow-changing)
+ */
+private data class LibraryData(
+    val tracks: List<Track> = emptyList(),
+    val recentlyPlayed: List<Track> = emptyList(),
+    val recentlyAdded: List<Track> = emptyList(),
+    val favoriteTracksPreview: List<Track> = emptyList(),
+    val hiResTracksPreview: List<Track> = emptyList(),
+    val trackCount: Int = 0,
+    val albumCount: Int = 0,
+    val artistCount: Int = 0,
+    val totalDuration: String = ""
+)
+
+/**
+ * Playback state data (fast-changing)
+ */
+private data class PlaybackData(
+    val currentlyPlayingTrack: Track? = null,
+    val isPlaying: Boolean = false,
+    val currentPosition: Long = 0L,
+    val duration: Long = 0L,
+    val progress: Float = 0f
+)
 
 /**
  * UI state for the Home screen

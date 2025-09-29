@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.octavia.player.domain.usecase.ExtractArtworkUseCase
 import com.octavia.player.domain.usecase.MediaLibraryScanUseCase
-import com.octavia.player.domain.repository.ArtworkExtractionProgress
-import com.octavia.player.domain.repository.ArtworkCacheStats
+import com.octavia.player.data.scanner.ArtworkExtractionProgress
+import com.octavia.player.data.scanner.ArtworkCacheStats
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow

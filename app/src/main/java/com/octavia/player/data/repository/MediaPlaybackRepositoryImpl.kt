@@ -71,27 +71,33 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     override val currentPosition: Flow<Long> = callbackFlow {
         var positionUpdateRunnable: Runnable? = null
         var handler: android.os.Handler? = null
+        var isActive = true
 
         val updatePosition = {
-            val position = exoPlayer.currentPosition
-            trySend(position)
-            // Temporary debug logging - can be removed in production
-            android.util.Log.d("PositionUpdate", "Position: ${position}ms, Playing: ${exoPlayer.isPlaying}")
+            if (isActive) {
+                val position = exoPlayer.currentPosition
+                trySend(position)
+            }
         }
 
         fun schedulePositionUpdate() {
+            // Ensure we're still active and have a valid handler
+            if (!isActive || handler == null) return
+
             handler?.removeCallbacks(positionUpdateRunnable ?: return)
 
             // Smart update intervals: fast when playing, slower when paused
             val updateInterval = if (exoPlayer.isPlaying) {
                 100L // Update every 100ms when playing for smooth progress
             } else {
-                5000L // Update every 5 seconds when paused to keep position in sync
+                1000L // Update every 1 second when paused for position sync
             }
 
             positionUpdateRunnable = Runnable {
-                updatePosition()
-                schedulePositionUpdate()
+                if (isActive) {
+                    updatePosition()
+                    schedulePositionUpdate()
+                }
             }
             handler?.postDelayed(positionUpdateRunnable!!, updateInterval)
         }
@@ -124,6 +130,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         schedulePositionUpdate() // Always start scheduling updates (interval adapts to play state)
 
         awaitClose {
+            isActive = false
             handler?.removeCallbacks(positionUpdateRunnable ?: return@awaitClose)
             exoPlayer.removeListener(listener)
             handler = null
@@ -131,7 +138,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         }
     }.stateIn(
         scope = positionScope,
-        started = kotlinx.coroutines.flow.SharingStarted.Eagerly,
+        started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
         initialValue = 0L
     )
 

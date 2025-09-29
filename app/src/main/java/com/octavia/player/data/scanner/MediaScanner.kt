@@ -11,11 +11,47 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 
 /**
- * Utility class for scanning media files
+ * Centralized media library scanner with comprehensive functionality
+ * Combines media scanning, artwork extraction, and error handling
  * Optimized for better performance and background artwork extraction
  */
 object MediaScanner {
 
+    /**
+     * Comprehensive library scanning with robust error handling
+     * @param context Application context
+     * @param extractArtworkInBackground Whether to extract artwork after scanning
+     * @return Result containing list of tracks or error
+     */
+    suspend fun scanLibrary(
+        context: Context,
+        extractArtworkInBackground: Boolean = true
+    ): Result<List<Track>> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.i("MediaScanner", "Starting library scan...")
+
+            val tracks = scanMusicLibrary(context, extractArtworkInBackground)
+
+            android.util.Log.i("MediaScanner", "Found ${tracks.size} tracks")
+
+            if (tracks.isEmpty()) {
+                android.util.Log.w("MediaScanner", "No music files found")
+                return@withContext Result.success(emptyList())
+            }
+
+            Result.success(tracks)
+        } catch (e: SecurityException) {
+            android.util.Log.e("MediaScanner", "Permission denied while scanning library", e)
+            Result.failure(SecurityException("Storage permission required to scan music library", e))
+        } catch (e: Exception) {
+            android.util.Log.e("MediaScanner", "Unexpected error during library scan", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Direct music library scanning (legacy method for compatibility)
+     */
     suspend fun scanMusicLibrary(context: Context, extractArtworkInBackground: Boolean = true): List<Track> = withContext(Dispatchers.IO) {
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
@@ -52,7 +88,7 @@ object MediaScanner {
             cursor?.use {
                 while (it.moveToNext()) {
                     yield() // Allow other coroutines to run
-                    val track = createTrackFromCursor(context, it, extractArtwork = true)
+                    val track = createTrackFromCursor(context, it, extractArtwork = false) // Don't extract artwork during scan
                     track?.let { validTrack ->
                         scannedTracks.add(validTrack)
                     }
@@ -63,14 +99,41 @@ object MediaScanner {
             e.printStackTrace()
         }
 
-        // Since we extract artwork during scan, we can still do background preloading for any missed tracks
+        // Launch artwork extraction in background after scan completes
         if (extractArtworkInBackground && scannedTracks.isNotEmpty()) {
+            // Don't await this - let it run in background
             async {
                 ArtworkExtractor.preloadArtwork(context, scannedTracks)
             }
         }
 
         scannedTracks
+    }
+
+    /**
+     * Extract artwork for a batch of tracks
+     * @param context Application context
+     * @param tracks List of tracks to extract artwork for
+     * @return Result of the extraction operation
+     */
+    suspend fun extractArtworkForTracks(
+        context: Context,
+        tracks: List<Track>
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            ArtworkExtractor.preloadArtwork(context, tracks)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Clear artwork cache
+     * @param context Application context
+     */
+    fun clearArtworkCache(context: Context) {
+        ArtworkExtractor.clearArtworkCache(context)
     }
 
     private fun createTrackFromCursor(context: Context, cursor: Cursor, extractArtwork: Boolean = true): Track? {

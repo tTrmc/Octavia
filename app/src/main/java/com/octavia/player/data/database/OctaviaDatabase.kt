@@ -65,6 +65,17 @@ abstract class OctaviaDatabase : RoomDatabase() {
                     database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_date_added ON tracks(date_added DESC)")
                     database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_codec ON tracks(codec_name)")
 
+                    // Additional critical indices for performance optimization
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_favorites ON tracks(is_favorite, last_played DESC)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_file_path ON tracks(file_path)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_duration ON tracks(duration_ms)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_sorting ON tracks(album, disc_number, track_number)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_hi_res ON tracks(is_lossless, sample_rate_hz DESC, bit_depth DESC)")
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_artwork ON tracks(artwork_path)")
+
+                    // Full-text search optimization (if supported)
+                    database.execSQL("CREATE INDEX IF NOT EXISTS idx_tracks_search_optimized ON tracks(title COLLATE NOCASE, artist COLLATE NOCASE, album COLLATE NOCASE)")
+
                 } catch (e: Exception) {
                     // Log the error but don't crash - fallback migration will handle it
                     android.util.Log.e("OctaviaDatabase", "Migration 1->2 failed", e)

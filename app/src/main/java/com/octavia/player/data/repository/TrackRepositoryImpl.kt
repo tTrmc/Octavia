@@ -96,4 +96,11 @@ class TrackRepositoryImpl @Inject constructor(
 
     override suspend fun isTrackUpToDate(filePath: String, lastModified: Long): Boolean =
         trackDao.isTrackUpToDate(filePath, lastModified)
+
+    override suspend fun getTracksWithoutArtwork(limit: Int): List<Track> =
+        trackDao.getTracksWithoutArtwork(limit)
+
+    override suspend fun clearAllArtworkPaths() {
+        trackDao.clearAllArtworkPaths()
+    }
 }
