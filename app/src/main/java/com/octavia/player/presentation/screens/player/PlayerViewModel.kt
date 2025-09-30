@@ -2,12 +2,14 @@ package com.octavia.player.presentation.screens.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.octavia.player.data.model.PlaybackQueue
 import com.octavia.player.data.model.PlaybackState
 import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.MediaPlaybackRepository
 import com.octavia.player.domain.usecase.PlaybackControlUseCase
+import com.octavia.player.domain.usecase.QueueManagementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val mediaPlaybackRepository: MediaPlaybackRepository,
-    private val playbackControlUseCase: PlaybackControlUseCase
+    private val playbackControlUseCase: PlaybackControlUseCase,
+    private val queueManagementUseCase: QueueManagementUseCase
 ) : ViewModel() {
 
     val uiState: StateFlow<PlayerUiState> = combine(
@@ -47,6 +50,11 @@ class PlayerViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PlayerUiState()
     )
+
+    /**
+     * Expose the playback queue
+     */
+    val playbackQueue: StateFlow<PlaybackQueue> = queueManagementUseCase.playbackQueue
 
     fun togglePlayPause() {
         playbackControlUseCase.togglePlayPause()
@@ -90,6 +98,50 @@ class PlayerViewModel @Inject constructor(
 
     fun setVolume(volume: Float) {
         playbackControlUseCase.setVolume(volume)
+    }
+
+    // Queue management methods
+
+    fun addToQueue(track: Track) {
+        viewModelScope.launch {
+            queueManagementUseCase.addToQueue(track)
+        }
+    }
+
+    fun addToQueueNext(track: Track) {
+        viewModelScope.launch {
+            queueManagementUseCase.addToQueueNext(track)
+        }
+    }
+
+    fun removeFromQueue(index: Int) {
+        viewModelScope.launch {
+            queueManagementUseCase.removeFromQueue(index)
+        }
+    }
+
+    fun moveInQueue(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            queueManagementUseCase.moveInQueue(fromIndex, toIndex)
+        }
+    }
+
+    fun clearQueue() {
+        viewModelScope.launch {
+            queueManagementUseCase.clearQueue()
+        }
+    }
+
+    fun jumpToQueueItem(index: Int) {
+        viewModelScope.launch {
+            queueManagementUseCase.jumpToQueueItem(index)
+        }
+    }
+
+    fun clearUpNext() {
+        viewModelScope.launch {
+            queueManagementUseCase.clearUpNext()
+        }
     }
 }
 

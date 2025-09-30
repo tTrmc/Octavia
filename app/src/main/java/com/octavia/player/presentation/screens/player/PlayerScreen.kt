@@ -45,6 +45,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -61,6 +64,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
+import com.octavia.player.presentation.screens.queue.QueueBottomSheet
 
 /**
  * Premium full-screen player with Spotify/Tidal-like design
@@ -73,6 +77,7 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTrack = uiState.currentTrack
+    var showQueueSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -107,7 +112,7 @@ fun PlayerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Open queue */ }) {
+                    IconButton(onClick = { showQueueSheet = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = "Queue",
@@ -491,6 +496,14 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+
+    // Show queue bottom sheet when requested
+    if (showQueueSheet) {
+        QueueBottomSheet(
+            onDismiss = { showQueueSheet = false },
+            viewModel = viewModel
+        )
     }
 }
 

@@ -38,7 +38,16 @@ interface MediaPlaybackRepository {
     fun setShuffleMode(shuffleMode: ShuffleMode)
     fun setPlaybackSpeed(speed: Float)
     fun setVolume(volume: Float)
-    
+
+    // Queue management
+    suspend fun addToQueue(track: Track)
+    suspend fun addToQueueNext(track: Track)
+    suspend fun insertInQueue(track: Track, position: Int)
+    suspend fun removeFromQueue(index: Int)
+    suspend fun moveInQueue(fromIndex: Int, toIndex: Int)
+    suspend fun clearQueue()
+    suspend fun jumpToQueueItem(index: Int)
+
     // Lifecycle
     fun release()
 }

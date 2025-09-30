@@ -296,6 +296,170 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         _playbackQueue.value = PlaybackQueue()
     }
 
+    override suspend fun addToQueue(track: Track) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+        val updatedTracks = currentQueue.tracks + track
+
+        android.util.Log.d("MediaPlayback", "addToQueue() - Adding ${track.displayTitle} to queue")
+
+        // Create new media item for ExoPlayer
+        val mediaItem = MediaItem.Builder()
+            .setUri(track.filePath)
+            .setMediaId(track.id.toString())
+            .build()
+
+        exoPlayer.addMediaItem(mediaItem)
+
+        updatePlaybackQueue {
+            it.copy(tracks = updatedTracks)
+        }
+    }
+
+    override suspend fun addToQueueNext(track: Track) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+        val currentIndex = currentQueue.currentIndex
+        val insertPosition = if (currentIndex >= 0) currentIndex + 1 else 0
+
+        android.util.Log.d("MediaPlayback", "addToQueueNext() - Adding ${track.displayTitle} at position $insertPosition")
+
+        insertInQueueInternal(track, insertPosition)
+    }
+
+    override suspend fun insertInQueue(track: Track, position: Int) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+        val validPosition = position.coerceIn(0, currentQueue.tracks.size)
+
+        android.util.Log.d("MediaPlayback", "insertInQueue() - Inserting ${track.displayTitle} at position $validPosition")
+
+        insertInQueueInternal(track, validPosition)
+    }
+
+    private fun insertInQueueInternal(track: Track, position: Int) {
+        val currentQueue = _playbackQueue.value
+        val updatedTracks = currentQueue.tracks.toMutableList().apply {
+            add(position, track)
+        }
+
+        // Create new media item for ExoPlayer
+        val mediaItem = MediaItem.Builder()
+            .setUri(track.filePath)
+            .setMediaId(track.id.toString())
+            .build()
+
+        exoPlayer.addMediaItem(position, mediaItem)
+
+        // Update current index if insertion affects it
+        val newCurrentIndex = if (position <= currentQueue.currentIndex) {
+            currentQueue.currentIndex + 1
+        } else {
+            currentQueue.currentIndex
+        }
+
+        updatePlaybackQueue {
+            it.copy(tracks = updatedTracks, currentIndex = newCurrentIndex)
+        }
+    }
+
+    override suspend fun removeFromQueue(index: Int) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+
+        if (index < 0 || index >= currentQueue.tracks.size) {
+            android.util.Log.w("MediaPlayback", "removeFromQueue() - Invalid index: $index")
+            return@withLock
+        }
+
+        // Don't allow removing the currently playing track
+        if (index == currentQueue.currentIndex) {
+            android.util.Log.w("MediaPlayback", "removeFromQueue() - Cannot remove currently playing track")
+            return@withLock
+        }
+
+        android.util.Log.d("MediaPlayback", "removeFromQueue() - Removing track at index $index")
+
+        val updatedTracks = currentQueue.tracks.toMutableList().apply {
+            removeAt(index)
+        }
+
+        exoPlayer.removeMediaItem(index)
+
+        // Update current index if removal affects it
+        val newCurrentIndex = when {
+            index < currentQueue.currentIndex -> currentQueue.currentIndex - 1
+            else -> currentQueue.currentIndex
+        }
+
+        updatePlaybackQueue {
+            it.copy(tracks = updatedTracks, currentIndex = newCurrentIndex)
+        }
+    }
+
+    override suspend fun moveInQueue(fromIndex: Int, toIndex: Int) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+
+        if (fromIndex < 0 || fromIndex >= currentQueue.tracks.size ||
+            toIndex < 0 || toIndex >= currentQueue.tracks.size) {
+            android.util.Log.w("MediaPlayback", "moveInQueue() - Invalid indices: from=$fromIndex, to=$toIndex")
+            return@withLock
+        }
+
+        if (fromIndex == toIndex) {
+            android.util.Log.d("MediaPlayback", "moveInQueue() - Same position, no move needed")
+            return@withLock
+        }
+
+        android.util.Log.d("MediaPlayback", "moveInQueue() - Moving track from $fromIndex to $toIndex")
+
+        val updatedTracks = currentQueue.tracks.toMutableList()
+        val trackToMove = updatedTracks.removeAt(fromIndex)
+        updatedTracks.add(toIndex, trackToMove)
+
+        exoPlayer.moveMediaItem(fromIndex, toIndex)
+
+        // Calculate new current index after move
+        val currentIndex = currentQueue.currentIndex
+        val newCurrentIndex = when {
+            currentIndex == fromIndex -> toIndex
+            fromIndex < currentIndex && toIndex >= currentIndex -> currentIndex - 1
+            fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
+            else -> currentIndex
+        }
+
+        updatePlaybackQueue {
+            it.copy(tracks = updatedTracks, currentIndex = newCurrentIndex)
+        }
+    }
+
+    override suspend fun clearQueue() = stateMutex.withLock {
+        android.util.Log.d("MediaPlayback", "clearQueue() - Clearing all tracks from queue")
+
+        stop()
+    }
+
+    override suspend fun jumpToQueueItem(index: Int) = stateMutex.withLock {
+        val currentQueue = _playbackQueue.value
+
+        if (index < 0 || index >= currentQueue.tracks.size) {
+            android.util.Log.w("MediaPlayback", "jumpToQueueItem() - Invalid index: $index")
+            return@withLock
+        }
+
+        android.util.Log.d("MediaPlayback", "jumpToQueueItem() - Jumping to track at index $index")
+
+        exoPlayer.seekTo(index, 0L)
+        exoPlayer.prepare()
+
+        updatePlaybackQueue {
+            it.copy(currentIndex = index)
+        }
+
+        _currentTrack.value = currentQueue.tracks.getOrNull(index)
+
+        // Start playing if not already playing
+        if (!exoPlayer.isPlaying) {
+            play()
+        }
+    }
+
     override fun release() {
         // Release audio focus
         abandonAudioFocus()

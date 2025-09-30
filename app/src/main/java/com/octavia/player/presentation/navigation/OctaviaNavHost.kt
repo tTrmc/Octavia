@@ -18,6 +18,7 @@ object Routes {
     const val LIBRARY = "library"
     const val SEARCH = "search"
     const val PLAYER = "player"
+    const val QUEUE = "queue"
     const val SETTINGS = "settings"
     const val ALBUM_DETAIL = "album_detail/{albumId}"
     const val ARTIST_DETAIL = "artist_detail/{artistId}"
