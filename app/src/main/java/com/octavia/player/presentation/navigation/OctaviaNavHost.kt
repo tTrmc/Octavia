@@ -1,12 +1,15 @@
 package com.octavia.player.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.octavia.player.presentation.screens.home.HomeScreen
 import com.octavia.player.presentation.screens.library.LibraryScreen
 import com.octavia.player.presentation.screens.player.PlayerScreen
+import com.octavia.player.presentation.screens.playlist.PlaylistDetailScreen
+import com.octavia.player.presentation.screens.playlist.PlaylistDetailViewModel
 import com.octavia.player.presentation.screens.search.SearchScreen
 import com.octavia.player.presentation.screens.settings.SettingsScreen
 
@@ -99,7 +102,6 @@ fun OctaviaNavHost() {
         composable("playlist_detail/{playlistId}") { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
             PlaylistDetailScreen(
-                playlistId = playlistId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -115,9 +117,4 @@ private fun AlbumDetailScreen(albumId: Long, onNavigateBack: () -> Unit) {
 @Composable
 private fun ArtistDetailScreen(artistId: Long, onNavigateBack: () -> Unit) {
     // TODO: Implement artist detail screen
-}
-
-@Composable
-private fun PlaylistDetailScreen(playlistId: Long, onNavigateBack: () -> Unit) {
-    // TODO: Implement playlist detail screen
 }

@@ -10,8 +10,10 @@ import com.octavia.player.data.database.dao.PlaylistDao
 import com.octavia.player.data.database.dao.TrackDao
 import com.octavia.player.data.repository.TrackRepositoryImpl
 import com.octavia.player.data.repository.ArtworkRepositoryImpl
+import com.octavia.player.data.repository.PlaylistRepositoryImpl
 import com.octavia.player.domain.repository.TrackRepository
 import com.octavia.player.domain.repository.ArtworkRepository
+import com.octavia.player.domain.repository.PlaylistRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -72,4 +74,9 @@ abstract class RepositoryModule {
     abstract fun bindArtworkRepository(
         artworkRepositoryImpl: ArtworkRepositoryImpl
     ): ArtworkRepository
+
+    @Binds
+    abstract fun bindPlaylistRepository(
+        playlistRepositoryImpl: PlaylistRepositoryImpl
+    ): PlaylistRepository
 }

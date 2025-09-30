@@ -70,7 +70,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.octavia.player.data.model.Track
+import com.octavia.player.presentation.components.AddToPlaylistSheet
 import com.octavia.player.presentation.components.AlbumCard
+import com.octavia.player.presentation.components.CreatePlaylistDialog
 import com.octavia.player.presentation.components.MiniPlayer
 import com.octavia.player.presentation.components.TrackItem
 import kotlinx.coroutines.launch
@@ -94,6 +97,11 @@ fun LibraryScreen(
 
     // Search state
     var searchQuery by remember { mutableStateOf("") }
+
+    // Dialog state
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
     Scaffold(
         topBar = {
@@ -230,7 +238,7 @@ fun LibraryScreen(
 
                 LibraryTab.PLAYLISTS -> {
                     FloatingActionButton(
-                        onClick = { /* Create new playlist */ }
+                        onClick = { showCreatePlaylistDialog = true }
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Create playlist")
                     }
@@ -349,6 +357,10 @@ fun LibraryScreen(
                                 error = uiState.error,
                                 currentlyPlayingTrack = uiState.currentlyPlayingTrack,
                                 onTrackClick = { track -> viewModel.playTrack(track) },
+                                onMoreClick = { track ->
+                                    selectedTrack = track
+                                    showAddToPlaylistSheet = true
+                                },
                                 sortOption = currentSort
                             )
                         }
@@ -385,6 +397,40 @@ fun LibraryScreen(
             }
         }
     }
+
+    // Create Playlist Dialog
+    if (showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onConfirm = { name, description ->
+                viewModel.createPlaylist(name, description)
+                showCreatePlaylistDialog = false
+            }
+        )
+    }
+
+    // Add to Playlist Sheet
+    if (showAddToPlaylistSheet && selectedTrack != null) {
+        AddToPlaylistSheet(
+            track = selectedTrack!!,
+            playlists = uiState.playlists,
+            onDismiss = {
+                showAddToPlaylistSheet = false
+                selectedTrack = null
+            },
+            onCreateNewPlaylist = {
+                showAddToPlaylistSheet = false
+                showCreatePlaylistDialog = true
+            },
+            onAddToPlaylist = { playlist ->
+                selectedTrack?.let { track ->
+                    viewModel.addTrackToPlaylist(playlist.id, track.id)
+                }
+                showAddToPlaylistSheet = false
+                selectedTrack = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -394,6 +440,7 @@ private fun TracksTab(
     error: String?,
     currentlyPlayingTrack: com.octavia.player.data.model.Track?,
     onTrackClick: (com.octavia.player.data.model.Track) -> Unit,
+    onMoreClick: (com.octavia.player.data.model.Track) -> Unit,
     sortOption: SortOption = SortOption.NAME_ASC
 ) {
     val sortedTracks = remember(tracks, sortOption) {
@@ -578,6 +625,7 @@ private fun TracksTab(
                             onClick = { onTrackClick(track) },
                             showQuality = true,
                             isPlaying = currentlyPlayingTrack?.id == track.id,
+                            onMoreClick = onMoreClick,
                             modifier = Modifier.animateItem()
                         )
                     }

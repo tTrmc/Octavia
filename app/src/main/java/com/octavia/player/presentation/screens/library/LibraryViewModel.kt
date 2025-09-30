@@ -11,6 +11,8 @@ import com.octavia.player.domain.repository.MediaPlaybackRepository
 import com.octavia.player.domain.usecase.GetTracksUseCase
 import com.octavia.player.domain.usecase.MediaLibraryScanUseCase
 import com.octavia.player.domain.usecase.PlaybackControlUseCase
+import com.octavia.player.domain.usecase.PlaylistManagementUseCase
+import com.octavia.player.domain.usecase.PlaylistTrackManagementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,17 +30,21 @@ class LibraryViewModel @Inject constructor(
     private val getTracksUseCase: GetTracksUseCase,
     private val playbackControlUseCase: PlaybackControlUseCase,
     private val mediaLibraryScanUseCase: MediaLibraryScanUseCase,
-    private val mediaPlaybackRepository: MediaPlaybackRepository
+    private val mediaPlaybackRepository: MediaPlaybackRepository,
+    private val playlistManagementUseCase: PlaylistManagementUseCase,
+    private val playlistTrackManagementUseCase: PlaylistTrackManagementUseCase
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<LibraryUiState> = combine(
         getTracksUseCase.getAllTracks(),
+        playlistManagementUseCase.getAllPlaylists(),
         mediaPlaybackRepository.currentTrack,
         mediaPlaybackRepository.playerState,
         mediaPlaybackRepository.currentPosition
-    ) { tracks, currentTrack, playerState, currentPosition ->
+    ) { tracks, playlists, currentTrack, playerState, currentPosition ->
         LibraryUiState(
             tracks = tracks,
+            playlists = playlists,
             currentlyPlayingTrack = currentTrack,
             isPlaying = playerState.isPlaying,
             currentPosition = currentPosition,
@@ -131,6 +137,56 @@ class LibraryViewModel @Inject constructor(
     fun toggleFavorite(track: Track) {
         viewModelScope.launch {
             playbackControlUseCase.toggleFavorite(track)
+        }
+    }
+
+    // Playlist management methods
+
+    fun createPlaylist(name: String, description: String?) {
+        viewModelScope.launch {
+            try {
+                playlistManagementUseCase.createPlaylist(name, description)
+                    .onSuccess { playlistId ->
+                        android.util.Log.d("LibraryViewModel", "Created playlist: $name with ID: $playlistId")
+                    }
+                    .onFailure { error ->
+                        android.util.Log.e("LibraryViewModel", "Failed to create playlist: $name", error)
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Unexpected error creating playlist", e)
+            }
+        }
+    }
+
+    fun deletePlaylist(playlistId: Long) {
+        viewModelScope.launch {
+            try {
+                playlistManagementUseCase.deletePlaylist(playlistId)
+                    .onSuccess {
+                        android.util.Log.d("LibraryViewModel", "Deleted playlist ID: $playlistId")
+                    }
+                    .onFailure { error ->
+                        android.util.Log.e("LibraryViewModel", "Failed to delete playlist", error)
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Unexpected error deleting playlist", e)
+            }
+        }
+    }
+
+    fun addTrackToPlaylist(playlistId: Long, trackId: Long) {
+        viewModelScope.launch {
+            try {
+                playlistTrackManagementUseCase.addTrackToPlaylist(playlistId, trackId)
+                    .onSuccess {
+                        android.util.Log.d("LibraryViewModel", "Added track $trackId to playlist $playlistId")
+                    }
+                    .onFailure { error ->
+                        android.util.Log.e("LibraryViewModel", "Failed to add track to playlist", error)
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Unexpected error adding track to playlist", e)
+            }
         }
     }
 }

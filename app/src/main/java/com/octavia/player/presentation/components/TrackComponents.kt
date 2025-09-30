@@ -64,7 +64,8 @@ fun TrackItem(
     showFavoriteIcon: Boolean = false,
     showQuality: Boolean = false,
     isPlaying: Boolean = false,
-    onFavoriteClick: ((Track) -> Unit)? = null
+    onFavoriteClick: ((Track) -> Unit)? = null,
+    onMoreClick: ((Track) -> Unit)? = null
 ) {
     // Cache expensive calculations to prevent recomposition
     val surfaceColor = if (isPlaying)
@@ -224,9 +225,9 @@ fun TrackItem(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-                } else {
+                } else if (onMoreClick != null) {
                     IconButton(
-                        onClick = { /* TODO: Show track options */ },
+                        onClick = { onMoreClick(track) },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
