@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -73,8 +76,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.octavia.player.data.model.Track
 import com.octavia.player.presentation.components.AddToPlaylistSheet
 import com.octavia.player.presentation.components.AlbumCard
+import com.octavia.player.presentation.components.ArtistCard
 import com.octavia.player.presentation.components.CreatePlaylistDialog
 import com.octavia.player.presentation.components.MiniPlayer
+import com.octavia.player.presentation.components.PlaylistCardGrid
 import com.octavia.player.presentation.components.TrackItem
 import kotlinx.coroutines.launch
 
@@ -679,31 +684,20 @@ private fun ArtistsTab(
             subtitle = "Artists will appear here when you add music to your library"
         )
     } else {
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 140.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(artists) { artist ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
+            items(
+                items = artists,
+                key = { it.id }
+            ) { artist ->
+                ArtistCard(
+                    artist = artist,
                     onClick = { onArtistClick(artist.id) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = artist.displayName,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "${artist.albumCount} albums • ${artist.trackCount} tracks",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                )
             }
         }
     }
@@ -721,31 +715,20 @@ private fun PlaylistsTab(
             subtitle = "Create your first playlist to organize your favorite tracks"
         )
     } else {
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 140.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(playlists) { playlist ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
+            items(
+                items = playlists,
+                key = { it.id }
+            ) { playlist ->
+                PlaylistCardGrid(
+                    playlist = playlist,
                     onClick = { onPlaylistClick(playlist.id) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = playlist.displayName,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "${playlist.trackCount} tracks • ${playlist.formattedDuration}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                )
             }
         }
     }
