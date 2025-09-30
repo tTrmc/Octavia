@@ -71,9 +71,8 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     // Position updates flow - lifecycle-aware and event-driven with smart intervals
     override val currentPosition: Flow<Long> = callbackFlow {
         android.util.Log.d("MediaPlayback", "Position flow started")
-        var positionUpdateRunnable: Runnable? = null
-        var handler: android.os.Handler? = null
         var isActive = true
+        var handler: android.os.Handler? = null
 
         val updatePosition = {
             if (isActive) {
@@ -83,44 +82,49 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             }
         }
 
-        fun schedulePositionUpdate() {
-            // Ensure we're still active and have a valid handler
-            if (!isActive || handler == null) return
+        // Create the position update runnable once - it reschedules itself
+        val positionUpdateRunnable = object : Runnable {
+            override fun run() {
+                if (!isActive) return
 
-            handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                // Update current position
+                updatePosition()
 
-            // Smart update intervals: fast when playing, slower when paused
-            val updateInterval = if (exoPlayer.isPlaying) {
-                100L // Update every 100ms when playing for smooth progress
-            } else {
-                1000L // Update every 1 second when paused for position sync
-            }
-
-            positionUpdateRunnable = Runnable {
-                if (isActive) {
-                    updatePosition()
-                    schedulePositionUpdate()
+                // Smart update intervals: fast when playing, slower when paused
+                val updateInterval = if (exoPlayer.isPlaying) {
+                    100L // Update every 100ms when playing for smooth progress
+                } else {
+                    1000L // Update every 1 second when paused for position sync
                 }
+
+                // Reschedule next update
+                handler?.postDelayed(this, updateInterval)
             }
-            handler?.postDelayed(positionUpdateRunnable!!, updateInterval)
         }
 
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 android.util.Log.d("MediaPlayback", "Playing state changed: $isPlaying")
                 updatePosition() // Immediate update on state change
-                schedulePositionUpdate() // Always schedule updates (interval will adjust based on playing state)
+
+                // Restart updates with new interval based on playing state
+                handler?.removeCallbacks(positionUpdateRunnable)
+                handler?.post(positionUpdateRunnable)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
                 android.util.Log.d("MediaPlayback", "Playback state changed: $state")
                 updatePosition() // Update position on state changes
+
                 when (state) {
                     Player.STATE_ENDED, Player.STATE_IDLE -> {
-                        handler?.removeCallbacks(positionUpdateRunnable ?: return)
+                        // Stop updates when playback ends or goes idle
+                        handler?.removeCallbacks(positionUpdateRunnable)
                     }
                     else -> {
-                        schedulePositionUpdate() // Keep updates going for other states
+                        // Restart updates for all other states
+                        handler?.removeCallbacks(positionUpdateRunnable)
+                        handler?.post(positionUpdateRunnable)
                     }
                 }
             }
@@ -130,21 +134,20 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         handler = android.os.Handler(android.os.Looper.getMainLooper())
         exoPlayer.addListener(listener)
 
-        // Send initial position and always start updates
+        // Send initial position and start continuous updates
         updatePosition()
-        schedulePositionUpdate() // Always start scheduling updates (interval adapts to play state)
+        handler.post(positionUpdateRunnable)
 
         awaitClose {
             android.util.Log.d("MediaPlayback", "Position flow closed")
             isActive = false
-            handler?.removeCallbacks(positionUpdateRunnable ?: return@awaitClose)
+            handler?.removeCallbacks(positionUpdateRunnable)
             exoPlayer.removeListener(listener)
             handler = null
-            positionUpdateRunnable = null
         }
     }.stateIn(
         scope = applicationScope,
-        started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+        started = kotlinx.coroutines.flow.SharingStarted.Lazily,
         initialValue = 0L
     )
 
