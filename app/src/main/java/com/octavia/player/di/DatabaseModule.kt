@@ -8,9 +8,13 @@ import com.octavia.player.data.database.dao.ArtistDao
 import com.octavia.player.data.database.dao.GenreDao
 import com.octavia.player.data.database.dao.PlaylistDao
 import com.octavia.player.data.database.dao.TrackDao
+import com.octavia.player.data.repository.AlbumRepositoryImpl
+import com.octavia.player.data.repository.ArtistRepositoryImpl
 import com.octavia.player.data.repository.TrackRepositoryImpl
 import com.octavia.player.data.repository.ArtworkRepositoryImpl
 import com.octavia.player.data.repository.PlaylistRepositoryImpl
+import com.octavia.player.domain.repository.AlbumRepository
+import com.octavia.player.domain.repository.ArtistRepository
 import com.octavia.player.domain.repository.TrackRepository
 import com.octavia.player.domain.repository.ArtworkRepository
 import com.octavia.player.domain.repository.PlaylistRepository
@@ -69,6 +73,16 @@ abstract class RepositoryModule {
     abstract fun bindTrackRepository(
         trackRepositoryImpl: TrackRepositoryImpl
     ): TrackRepository
+
+    @Binds
+    abstract fun bindAlbumRepository(
+        albumRepositoryImpl: AlbumRepositoryImpl
+    ): AlbumRepository
+
+    @Binds
+    abstract fun bindArtistRepository(
+        artistRepositoryImpl: ArtistRepositoryImpl
+    ): ArtistRepository
 
     @Binds
     abstract fun bindArtworkRepository(

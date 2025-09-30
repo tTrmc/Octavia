@@ -5,6 +5,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.octavia.player.presentation.screens.album.AlbumDetailScreen
+import com.octavia.player.presentation.screens.artist.ArtistDetailScreen
 import com.octavia.player.presentation.screens.home.HomeScreen
 import com.octavia.player.presentation.screens.library.LibraryScreen
 import com.octavia.player.presentation.screens.player.PlayerScreen
@@ -84,37 +86,21 @@ fun OctaviaNavHost() {
 
         // Detail screens
         composable("album_detail/{albumId}") { backStackEntry ->
-            val albumId = backStackEntry.arguments?.getString("albumId")?.toLongOrNull() ?: 0L
             AlbumDetailScreen(
-                albumId = albumId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
         composable("artist_detail/{artistId}") { backStackEntry ->
-            val artistId = backStackEntry.arguments?.getString("artistId")?.toLongOrNull() ?: 0L
             ArtistDetailScreen(
-                artistId = artistId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
         composable("playlist_detail/{playlistId}") { backStackEntry ->
-            val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
             PlaylistDetailScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
     }
-}
-
-// Placeholder composables for detail screens
-@Composable
-private fun AlbumDetailScreen(albumId: Long, onNavigateBack: () -> Unit) {
-    // TODO: Implement album detail screen
-}
-
-@Composable
-private fun ArtistDetailScreen(artistId: Long, onNavigateBack: () -> Unit) {
-    // TODO: Implement artist detail screen
 }

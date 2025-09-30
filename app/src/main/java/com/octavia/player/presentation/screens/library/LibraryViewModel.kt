@@ -8,6 +8,8 @@ import com.octavia.player.data.model.Artist
 import com.octavia.player.data.model.Playlist
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.MediaPlaybackRepository
+import com.octavia.player.domain.usecase.GetAlbumsUseCase
+import com.octavia.player.domain.usecase.GetArtistsUseCase
 import com.octavia.player.domain.usecase.GetTracksUseCase
 import com.octavia.player.domain.usecase.MediaLibraryScanUseCase
 import com.octavia.player.domain.usecase.PlaybackControlUseCase
@@ -28,6 +30,8 @@ import javax.inject.Inject
 class LibraryViewModel @Inject constructor(
     private val application: Application,
     private val getTracksUseCase: GetTracksUseCase,
+    private val getAlbumsUseCase: GetAlbumsUseCase,
+    private val getArtistsUseCase: GetArtistsUseCase,
     private val playbackControlUseCase: PlaybackControlUseCase,
     private val mediaLibraryScanUseCase: MediaLibraryScanUseCase,
     private val mediaPlaybackRepository: MediaPlaybackRepository,
@@ -37,13 +41,25 @@ class LibraryViewModel @Inject constructor(
 
     val uiState: StateFlow<LibraryUiState> = combine(
         getTracksUseCase.getAllTracks(),
+        getAlbumsUseCase.getAllAlbums(),
+        getArtistsUseCase.getAllArtists(),
         playlistManagementUseCase.getAllPlaylists(),
         mediaPlaybackRepository.currentTrack,
         mediaPlaybackRepository.playerState,
         mediaPlaybackRepository.currentPosition
-    ) { tracks, playlists, currentTrack, playerState, currentPosition ->
+    ) { flows ->
+        val tracks = flows[0] as List<Track>
+        val albums = flows[1] as List<Album>
+        val artists = flows[2] as List<Artist>
+        val playlists = flows[3] as List<Playlist>
+        val currentTrack = flows[4] as Track?
+        val playerState = flows[5] as com.octavia.player.data.model.PlayerState
+        val currentPosition = flows[6] as Long
+
         LibraryUiState(
             tracks = tracks,
+            albums = albums,
+            artists = artists,
             playlists = playlists,
             currentlyPlayingTrack = currentTrack,
             isPlaying = playerState.isPlaying,
