@@ -5,7 +5,6 @@ import android.media.AudioManager
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.octavia.player.data.model.PlaybackQueue
 import com.octavia.player.data.model.PlaybackState
 import com.octavia.player.data.model.PlayerState
@@ -13,20 +12,17 @@ import com.octavia.player.data.model.RepeatMode
 import com.octavia.player.data.model.ShuffleMode
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.MediaPlaybackRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -560,7 +556,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
                     originalOrder = tracks,
                     shuffledOrder = if (tracks.size > 1) {
                         // Only shuffle if not already shuffled to avoid recreating the same order
-                        if (currentQueue.shuffledOrder.isEmpty()) tracks.shuffled() else currentQueue.shuffledOrder
+                        currentQueue.shuffledOrder.ifEmpty { tracks.shuffled() }
                     } else tracks,
                     isShuffled = false
                 )

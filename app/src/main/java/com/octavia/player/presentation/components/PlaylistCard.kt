@@ -240,7 +240,7 @@ private fun formatDuration(durationMs: Long): String {
 
     return when {
         hours > 0 -> "${hours}h ${minutes}m"
-        minutes > 0 -> "${minutes} min"
+        minutes > 0 -> "$minutes min"
         else -> "< 1 min"
     }
 }

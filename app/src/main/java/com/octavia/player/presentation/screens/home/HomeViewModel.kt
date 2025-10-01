@@ -126,10 +126,6 @@ class HomeViewModel @Inject constructor(
         initialValue = HomeUiState()
     )
 
-    init {
-        // Stats will be loaded separately if needed
-    }
-
     fun resumePlayback() {
         viewModelScope.launch {
             try {

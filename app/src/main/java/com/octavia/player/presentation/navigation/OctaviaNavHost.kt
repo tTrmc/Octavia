@@ -1,7 +1,6 @@
 package com.octavia.player.presentation.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -11,7 +10,6 @@ import com.octavia.player.presentation.screens.home.HomeScreen
 import com.octavia.player.presentation.screens.library.LibraryScreen
 import com.octavia.player.presentation.screens.player.PlayerScreen
 import com.octavia.player.presentation.screens.playlist.PlaylistDetailScreen
-import com.octavia.player.presentation.screens.playlist.PlaylistDetailViewModel
 import com.octavia.player.presentation.screens.search.SearchScreen
 import com.octavia.player.presentation.screens.settings.SettingsScreen
 

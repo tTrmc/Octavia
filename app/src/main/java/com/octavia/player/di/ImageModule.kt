@@ -5,13 +5,12 @@ import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
-import coil3.util.DebugLogger
-import okio.Path.Companion.toOkioPath
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okio.Path.Companion.toOkioPath
 import javax.inject.Singleton
 
 /**

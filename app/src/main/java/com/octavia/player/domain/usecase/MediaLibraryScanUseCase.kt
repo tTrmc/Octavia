@@ -111,7 +111,7 @@ class MediaLibraryScanUseCase @Inject constructor(
         }
     }
 
-    suspend fun refreshArtwork(context: Context): Result<Unit> {
+    fun refreshArtwork(context: Context): Result<Unit> {
         return trackRepository.getAllTracks()
             .let { tracksFlow ->
                 // Get the current tracks (this is a simplified approach)

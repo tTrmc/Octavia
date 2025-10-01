@@ -6,7 +6,6 @@ import android.provider.MediaStore
 import com.octavia.player.data.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 
@@ -138,7 +137,7 @@ object MediaScanner {
 
     private fun createTrackFromCursor(context: Context, cursor: Cursor, extractArtwork: Boolean = true): Track? {
         return try {
-            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+            cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
             val displayName =
                 cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
                     ?: ""

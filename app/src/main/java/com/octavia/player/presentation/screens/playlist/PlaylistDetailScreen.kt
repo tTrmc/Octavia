@@ -1,8 +1,5 @@
 package com.octavia.player.presentation.screens.playlist
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -459,7 +456,7 @@ private fun formatDuration(durationMs: Long): String {
 
     return when {
         hours > 0 -> "${hours}h ${minutes}m"
-        minutes > 0 -> "${minutes} min"
+        minutes > 0 -> "$minutes min"
         else -> "< 1 min"
     }
 }

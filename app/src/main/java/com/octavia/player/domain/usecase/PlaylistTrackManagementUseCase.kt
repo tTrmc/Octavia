@@ -1,7 +1,6 @@
 package com.octavia.player.domain.usecase
 
 import com.octavia.player.data.model.Playlist
-import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.PlaylistRepository
 import com.octavia.player.domain.repository.TrackRepository
 import kotlinx.coroutines.flow.first

@@ -35,8 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +50,6 @@ import coil3.request.crossfade
 import com.octavia.player.data.model.Album
 import com.octavia.player.data.model.Playlist
 import com.octavia.player.data.model.Track
-import java.io.File
 
 /**
  * Premium track item component with clean, modern design

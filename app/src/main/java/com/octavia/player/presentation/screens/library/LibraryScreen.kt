@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -452,12 +451,12 @@ fun LibraryScreen(
 
 @Composable
 private fun TracksTab(
-    tracks: List<com.octavia.player.data.model.Track>,
+    tracks: List<Track>,
     isLoading: Boolean,
     error: String?,
-    currentlyPlayingTrack: com.octavia.player.data.model.Track?,
-    onTrackClick: (com.octavia.player.data.model.Track) -> Unit,
-    onMoreClick: (com.octavia.player.data.model.Track) -> Unit,
+    currentlyPlayingTrack: Track?,
+    onTrackClick: (Track) -> Unit,
+    onMoreClick: (Track) -> Unit,
     sortOption: SortOption = SortOption.NAME_ASC
 ) {
     val sortedTracks = remember(tracks, sortOption) {

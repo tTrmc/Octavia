@@ -1,6 +1,5 @@
 package com.octavia.player.data.repository
 
-import androidx.paging.PagingSource
 import com.octavia.player.data.database.dao.TrackDao
 import com.octavia.player.data.model.Track
 import io.mockk.*
@@ -8,10 +7,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
-import org.junit.Before
-import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
+import org.junit.Test
 
 class TrackRepositoryImplTest {
 
