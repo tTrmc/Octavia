@@ -458,10 +458,10 @@ fun ContinueListeningCard(
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 val artworkPath = track.artworkPath
-                if (artworkPath != null && File(artworkPath).exists()) {
+                if (artworkPath != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(File(artworkPath))
+                            .data(artworkPath)
                             .crossfade(true)
                             .build(),
                         contentDescription = "Album artwork",

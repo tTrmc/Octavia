@@ -283,7 +283,10 @@ fun LibraryScreen(
                                 Text(tab.title)
                                 when (tab) {
                                     LibraryTab.TRACKS -> if (uiState.tracks.isNotEmpty()) {
-                                        Badge {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ) {
                                             Text(
                                                 text = "${uiState.tracks.size}",
                                                 style = MaterialTheme.typography.labelSmall
@@ -292,7 +295,10 @@ fun LibraryScreen(
                                     }
 
                                     LibraryTab.ALBUMS -> if (uiState.albums.isNotEmpty()) {
-                                        Badge {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ) {
                                             Text(
                                                 text = "${uiState.albums.size}",
                                                 style = MaterialTheme.typography.labelSmall
@@ -301,7 +307,10 @@ fun LibraryScreen(
                                     }
 
                                     LibraryTab.ARTISTS -> if (uiState.artists.isNotEmpty()) {
-                                        Badge {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ) {
                                             Text(
                                                 text = "${uiState.artists.size}",
                                                 style = MaterialTheme.typography.labelSmall
@@ -310,7 +319,10 @@ fun LibraryScreen(
                                     }
 
                                     LibraryTab.PLAYLISTS -> if (uiState.playlists.isNotEmpty()) {
-                                        Badge {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ) {
                                             Text(
                                                 text = "${uiState.playlists.size}",
                                                 style = MaterialTheme.typography.labelSmall
