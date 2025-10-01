@@ -39,7 +39,8 @@ import javax.inject.Singleton
 class MediaPlaybackRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val exoPlayer: ExoPlayer,
-    @Named("ApplicationScope") private val applicationScope: CoroutineScope
+    @Named("ApplicationScope") private val applicationScope: CoroutineScope,
+    private val playbackStateDataStore: com.octavia.player.data.datastore.PlaybackStateDataStore
 ) : MediaPlaybackRepository {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -460,6 +461,41 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
         // Start playing if not already playing
         if (!exoPlayer.isPlaying) {
             play()
+        }
+    }
+
+    override suspend fun savePlaybackState() {
+        try {
+            val currentTrack = _currentTrack.value
+            val queue = _playbackQueue.value
+
+            if (currentTrack != null && queue.tracks.isNotEmpty()) {
+                playbackStateDataStore.savePlaybackState(
+                    trackId = currentTrack.id,
+                    position = exoPlayer.currentPosition,
+                    queueTrackIds = queue.tracks.map { it.id },
+                    queueIndex = queue.currentIndex
+                )
+                android.util.Log.d("MediaPlayback", "Saved playback state: track=${currentTrack.displayTitle}, position=${exoPlayer.currentPosition}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaPlayback", "Failed to save playback state", e)
+        }
+    }
+
+    override suspend fun restorePlaybackState() {
+        try {
+            playbackStateDataStore.getPlaybackState().collect { savedState ->
+                if (savedState != null) {
+                    android.util.Log.d("MediaPlayback", "Restoring playback state: trackId=${savedState.trackId}, position=${savedState.position}")
+                    // Note: Actual restoration requires track lookup which happens in HomeViewModel
+                    // This method is a placeholder for future auto-restore functionality
+                } else {
+                    android.util.Log.d("MediaPlayback", "No saved playback state found")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaPlayback", "Failed to restore playback state", e)
         }
     }
 

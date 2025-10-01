@@ -1,4 +1,4 @@
-# Octavia - Hi-Fi Android Music Player
+# Octavia
 
 A modern, offline-first Android music player engineered for high-fidelity audio playback. Built with Kotlin, Jetpack Compose, and Media3 ExoPlayer, supporting lossless formats up to 192kHz/32-bit.
 

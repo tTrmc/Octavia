@@ -48,6 +48,10 @@ interface MediaPlaybackRepository {
     suspend fun clearQueue()
     suspend fun jumpToQueueItem(index: Int)
 
+    // Persistence
+    suspend fun savePlaybackState()
+    suspend fun restorePlaybackState()
+
     // Lifecycle
     fun release()
 }

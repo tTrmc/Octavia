@@ -21,8 +21,11 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getTracksUseCase: GetTracksUseCase,
+    private val getAlbumsUseCase: com.octavia.player.domain.usecase.GetAlbumsUseCase,
+    private val playlistManagementUseCase: com.octavia.player.domain.usecase.PlaylistManagementUseCase,
     private val playbackControlUseCase: PlaybackControlUseCase,
-    private val mediaPlaybackRepository: MediaPlaybackRepository
+    private val mediaPlaybackRepository: MediaPlaybackRepository,
+    private val playbackStateDataStore: com.octavia.player.data.datastore.PlaybackStateDataStore
 ) : ViewModel() {
 
     // Separate the library data (slow-changing) from playback state (fast-changing)
@@ -31,12 +34,27 @@ class HomeViewModel @Inject constructor(
         getTracksUseCase.getRecentlyPlayedTracks(10),
         getTracksUseCase.getRecentlyAddedTracks(),
         getTracksUseCase.getFavoriteTracks(),
-        getTracksUseCase.getHiResTracks()
-    ) { tracks, recentlyPlayed, recentlyAdded, favorites, hiRes ->
+        getTracksUseCase.getHiResTracks(),
+        getAlbumsUseCase.getRecentlyAddedAlbums(10),
+        playbackStateDataStore.getPlaybackState()
+    ) { flows ->
+        val tracks = flows[0] as List<Track>
+        val recentlyPlayed = flows[1] as List<Track>
+        val recentlyAdded = flows[2] as List<Track>
+        val favorites = flows[3] as List<Track>
+        val hiRes = flows[4] as List<Track>
+        val recentlyAddedAlbums = flows[5] as List<Album>
+        val savedState = flows[6] as com.octavia.player.data.datastore.SavedPlaybackState?
+
         // Cache expensive calculations
         val albumCount = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
         val artistCount = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
         val totalDurationMs = tracks.sumOf { it.durationMs }
+
+        // Find last played track from saved state
+        val lastPlayedTrack = savedState?.let { state ->
+            tracks.find { it.id == state.trackId }
+        }
 
         LibraryData(
             tracks = tracks,
@@ -44,6 +62,9 @@ class HomeViewModel @Inject constructor(
             recentlyAdded = recentlyAdded.take(10),
             favoriteTracksPreview = favorites.take(5),
             hiResTracksPreview = hiRes.take(5),
+            recentlyAddedAlbums = recentlyAddedAlbums,
+            lastPlayedTrack = lastPlayedTrack,
+            lastPlaybackPosition = savedState?.position ?: 0L,
             trackCount = tracks.size,
             albumCount = albumCount,
             artistCount = artistCount,
@@ -77,14 +98,17 @@ class HomeViewModel @Inject constructor(
     // Combine only when needed
     val uiState: StateFlow<HomeUiState> = combine(
         libraryData,
-        playbackState
-    ) { library, playback ->
+        playbackState,
+        playlistManagementUseCase.getAllPlaylists()
+    ) { library, playback, playlists ->
         HomeUiState(
             recentlyPlayed = library.recentlyPlayed,
             recentlyAdded = library.recentlyAdded,
             favoriteTracksPreview = library.favoriteTracksPreview,
             hiResTracksPreview = library.hiResTracksPreview,
-            recentlyAddedAlbums = emptyList(), // TODO: Implement album data
+            recentlyAddedAlbums = library.recentlyAddedAlbums,
+            lastPlayedTrack = library.lastPlayedTrack,
+            lastPlaybackPosition = library.lastPlaybackPosition,
             currentlyPlayingTrack = playback.currentlyPlayingTrack,
             isPlaying = playback.isPlaying,
             currentPosition = playback.currentPosition,
@@ -93,7 +117,7 @@ class HomeViewModel @Inject constructor(
             trackCount = library.trackCount,
             albumCount = library.albumCount,
             artistCount = library.artistCount,
-            playlistCount = 0, // TODO: Implement playlists
+            playlistCount = playlists.size,
             totalDuration = library.totalDuration
         )
     }.stateIn(
@@ -104,6 +128,25 @@ class HomeViewModel @Inject constructor(
 
     init {
         // Stats will be loaded separately if needed
+    }
+
+    fun resumePlayback() {
+        viewModelScope.launch {
+            try {
+                val lastPlayed = uiState.value.lastPlayedTrack
+                val lastPosition = uiState.value.lastPlaybackPosition
+
+                if (lastPlayed != null) {
+                    android.util.Log.d("HomeViewModel", "Resuming playback: ${lastPlayed.displayTitle} at ${lastPosition}ms")
+                    playbackControlUseCase.playTrack(lastPlayed)
+                    // Seek to last position after a short delay to ensure track is loaded
+                    kotlinx.coroutines.delay(200)
+                    mediaPlaybackRepository.seekTo(lastPosition)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to resume playback", e)
+            }
+        }
     }
 
     fun playTrack(track: Track) {
@@ -197,6 +240,9 @@ private data class LibraryData(
     val recentlyAdded: List<Track> = emptyList(),
     val favoriteTracksPreview: List<Track> = emptyList(),
     val hiResTracksPreview: List<Track> = emptyList(),
+    val recentlyAddedAlbums: List<Album> = emptyList(),
+    val lastPlayedTrack: Track? = null,
+    val lastPlaybackPosition: Long = 0L,
     val trackCount: Int = 0,
     val albumCount: Int = 0,
     val artistCount: Int = 0,
@@ -223,6 +269,8 @@ data class HomeUiState(
     val favoriteTracksPreview: List<Track> = emptyList(),
     val hiResTracksPreview: List<Track> = emptyList(),
     val recentlyAddedAlbums: List<Album> = emptyList(),
+    val lastPlayedTrack: Track? = null,
+    val lastPlaybackPosition: Long = 0L,
     val currentlyPlayingTrack: Track? = null,
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
@@ -235,4 +283,7 @@ data class HomeUiState(
     val totalDuration: String = "",
     val isLoading: Boolean = false,
     val error: String? = null
-)
+) {
+    val canResume: Boolean
+        get() = lastPlayedTrack != null && lastPlaybackPosition > 0
+}

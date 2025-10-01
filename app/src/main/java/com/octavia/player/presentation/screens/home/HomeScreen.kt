@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.octavia.player.presentation.components.AlbumCard
+import com.octavia.player.presentation.components.ContinueListeningCard
 import com.octavia.player.presentation.components.MiniPlayer
 import com.octavia.player.presentation.components.TrackItem
 
@@ -175,6 +176,19 @@ fun HomeScreen(
                         playlistCount = uiState.playlistCount,
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
+                }
+            }
+
+            // Continue Listening Card
+            uiState.lastPlayedTrack?.let { lastTrack ->
+                if (uiState.canResume) {
+                    item {
+                        ContinueListeningCard(
+                            track = lastTrack,
+                            position = uiState.lastPlaybackPosition,
+                            onResumeClick = { viewModel.resumePlayback() }
+                        )
+                    }
                 }
             }
 
