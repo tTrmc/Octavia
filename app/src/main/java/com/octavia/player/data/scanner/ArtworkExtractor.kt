@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import androidx.core.graphics.scale
 
 /**
  * Centralized artwork extraction and management service
@@ -239,7 +240,7 @@ object ArtworkExtractor {
         val newWidth = (width * scale).toInt()
         val newHeight = (height * scale).toInt()
 
-        val resized = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        val resized = bitmap.scale(newWidth, newHeight)
         if (resized != bitmap) {
             bitmap.recycle()
         }

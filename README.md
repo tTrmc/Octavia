@@ -9,9 +9,9 @@ A modern, offline-first Android music player engineered for high-fidelity audio 
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/home.png" alt="Home Screen" width="250"/>
-  <img src="screenshots/library.png" alt="Library View" width="250"/>
-  <img src="screenshots/player.png" alt="Player Interface" width="250"/>
+  <img src="screenshots/home.png" alt="Home Screen" width="1080"/>
+  <img src="screenshots/library.png" alt="Library View" width="1080"/>
+  <img src="screenshots/player.png" alt="Player Interface" width="1080"/>
 </p>
 
 ## Features

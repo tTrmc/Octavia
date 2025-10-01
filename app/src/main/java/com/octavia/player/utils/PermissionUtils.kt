@@ -27,7 +27,7 @@ object PermissionUtils {
                 )
             }
 
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+            true -> {
                 // Android 6.0+: Use READ_EXTERNAL_STORAGE
                 arrayOf(
                     Manifest.permission.READ_EXTERNAL_STORAGE
