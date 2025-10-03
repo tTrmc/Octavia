@@ -71,6 +71,62 @@ class TrackRepositoryImpl @Inject constructor(
 
     override suspend fun insertTracks(tracks: List<Track>): List<Long> = trackDao.insertTracks(tracks)
 
+    override suspend fun upsertTracksPreservingUserData(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+
+        val existingByPath = mutableMapOf<String, Track>()
+        val distinctPaths = tracks.map { it.filePath }.distinct()
+
+        // SQLite has a maximum variable count of 999; use a safe chunk size.
+        val chunkSize = 900
+        distinctPaths.chunked(chunkSize).forEach { chunk ->
+            trackDao.getTracksByPaths(chunk).forEach { existingTrack ->
+                existingByPath[existingTrack.filePath] = existingTrack
+            }
+        }
+
+        val scanTimestamp = System.currentTimeMillis()
+
+        tracks.forEach { scannedTrack ->
+            val existingTrack = existingByPath[scannedTrack.filePath]
+
+            if (existingTrack != null) {
+                val mergedTrack = scannedTrack.copy(
+                    id = existingTrack.id,
+                    fileHash = scannedTrack.fileHash ?: existingTrack.fileHash,
+                    albumArtist = scannedTrack.albumArtist ?: existingTrack.albumArtist,
+                    genre = scannedTrack.genre ?: existingTrack.genre,
+                    year = scannedTrack.year ?: existingTrack.year,
+                    trackNumber = scannedTrack.trackNumber ?: existingTrack.trackNumber,
+                    discNumber = scannedTrack.discNumber ?: existingTrack.discNumber,
+                    bitrateKbps = scannedTrack.bitrateKbps ?: existingTrack.bitrateKbps,
+                    sampleRateHz = scannedTrack.sampleRateHz ?: existingTrack.sampleRateHz,
+                    bitDepth = scannedTrack.bitDepth ?: existingTrack.bitDepth,
+                    channelCount = scannedTrack.channelCount ?: existingTrack.channelCount,
+                    codecName = scannedTrack.codecName ?: existingTrack.codecName,
+                    replayGainTrack = scannedTrack.replayGainTrack ?: existingTrack.replayGainTrack,
+                    replayGainAlbum = scannedTrack.replayGainAlbum ?: existingTrack.replayGainAlbum,
+                    replayGainPeak = scannedTrack.replayGainPeak ?: existingTrack.replayGainPeak,
+                    artworkPath = scannedTrack.artworkPath ?: existingTrack.artworkPath,
+                    albumId = scannedTrack.albumId ?: existingTrack.albumId,
+                    artistId = scannedTrack.artistId ?: existingTrack.artistId,
+                    genreId = scannedTrack.genreId ?: existingTrack.genreId,
+                    playCount = existingTrack.playCount,
+                    lastPlayed = existingTrack.lastPlayed,
+                    isFavorite = existingTrack.isFavorite,
+                    dateAdded = existingTrack.dateAdded,
+                    dateScanned = scanTimestamp
+                )
+
+                if (mergedTrack != existingTrack) {
+                    trackDao.updateTrack(mergedTrack)
+                }
+            } else {
+                trackDao.insertTrack(scannedTrack.copy(dateScanned = scanTimestamp))
+            }
+        }
+    }
+
     override suspend fun updateTrack(track: Track) = trackDao.updateTrack(track)
 
     override suspend fun incrementPlayCount(trackId: Long) =
@@ -83,8 +139,13 @@ class TrackRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTrackById(trackId: Long) = trackDao.deleteTrackById(trackId)
 
-    override suspend fun deleteTracksNotInPaths(existingPaths: List<String>) =
-        trackDao.deleteTracksNotInPaths(existingPaths)
+    override suspend fun deleteTracksNotInPaths(existingPaths: List<String>) {
+        if (existingPaths.isEmpty()) {
+            trackDao.deleteAllTracks()
+        } else {
+            trackDao.deleteTracksNotInPaths(existingPaths)
+        }
+    }
 
     override suspend fun getTrackCount(): Int = trackDao.getTrackCount()
 

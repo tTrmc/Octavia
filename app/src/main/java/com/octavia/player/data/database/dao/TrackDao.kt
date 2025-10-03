@@ -88,6 +88,9 @@ interface TrackDao {
     @Update
     suspend fun updateTrack(track: Track)
 
+    @Query("SELECT * FROM tracks WHERE file_path IN (:paths)")
+    suspend fun getTracksByPaths(paths: List<String>): List<Track>
+
     @Query("UPDATE tracks SET play_count = play_count + 1, last_played = :timestamp WHERE id = :trackId")
     suspend fun incrementPlayCount(trackId: Long, timestamp: Long = System.currentTimeMillis())
 
@@ -100,7 +103,7 @@ interface TrackDao {
     @Query("DELETE FROM tracks WHERE id = :trackId")
     suspend fun deleteTrackById(trackId: Long)
 
-    @Query("DELETE FROM tracks WHERE file_path NOT IN (SELECT file_path FROM tracks WHERE file_path IN (:existingPaths))")
+    @Query("DELETE FROM tracks WHERE file_path NOT IN (:existingPaths)")
     suspend fun deleteTracksNotInPaths(existingPaths: List<String>)
 
     @Query("DELETE FROM tracks")

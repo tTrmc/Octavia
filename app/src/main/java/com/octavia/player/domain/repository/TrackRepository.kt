@@ -38,6 +38,9 @@ interface TrackRepository {
     suspend fun deleteTrack(track: Track)
     suspend fun deleteTrackById(trackId: Long)
     suspend fun deleteTracksNotInPaths(existingPaths: List<String>)
+
+    // Upsert operations
+    suspend fun upsertTracksPreservingUserData(tracks: List<Track>)
     
     // Statistics
     suspend fun incrementPlayCount(trackId: Long)

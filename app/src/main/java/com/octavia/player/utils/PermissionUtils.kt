@@ -17,35 +17,48 @@ object PermissionUtils {
     /**
      * Required permissions for the music player based on Android version
      */
-    fun getRequiredPermissions(): Array<String> {
+    fun getRequiredPermissions(): Array<String> = getMandatoryPermissions()
+
+    /**
+     * Mandatory permissions needed for core playback features
+     */
+    fun getMandatoryPermissions(): Array<String> {
         return when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Android 13+: Use granular media permissions
-                arrayOf(
-                    Manifest.permission.READ_MEDIA_AUDIO,
-                    Manifest.permission.POST_NOTIFICATIONS
-                )
-            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO
+            )
 
-            true -> {
-                // Android 6.0+: Use READ_EXTERNAL_STORAGE
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                )
-            }
-
-            else -> {
-                // Below Android 6.0: No runtime permissions needed
-                emptyArray()
-            }
+            else -> arrayOf(
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            )
         }
+    }
+
+    /**
+     * Optional permissions that enhance – but do not gate – the experience
+     */
+    fun getOptionalPermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            emptyArray()
+        }
+    }
+
+    /**
+     * All permissions we may request in a single pass
+     */
+    fun getAllPermissions(): Array<String> {
+        val mandatory = getMandatoryPermissions()
+        val optional = getOptionalPermissions()
+        return (mandatory + optional).distinct().toTypedArray()
     }
 
     /**
      * Check if all required permissions are granted
      */
     fun hasAllPermissions(context: Context): Boolean {
-        val requiredPermissions = getRequiredPermissions()
+        val requiredPermissions = getMandatoryPermissions()
         return requiredPermissions.all { permission ->
             ContextCompat.checkSelfPermission(
                 context,
@@ -68,7 +81,16 @@ object PermissionUtils {
      * Get the list of permissions that are not yet granted
      */
     fun getMissingPermissions(context: Context): List<String> {
-        return getRequiredPermissions().filter { permission ->
+        return getMandatoryPermissions().filter { permission ->
+            !hasPermission(context, permission)
+        }
+    }
+
+    /**
+     * Get optional permissions that are still missing
+     */
+    fun getMissingOptionalPermissions(context: Context): List<String> {
+        return getOptionalPermissions().filter { permission ->
             !hasPermission(context, permission)
         }
     }
@@ -77,7 +99,7 @@ object PermissionUtils {
      * Check if we should show rationale for any permission
      */
     fun shouldShowRationale(activity: Activity): Boolean {
-        return getRequiredPermissions().any { permission ->
+        return getMandatoryPermissions().any { permission ->
             activity.shouldShowRequestPermissionRationale(permission)
         }
     }

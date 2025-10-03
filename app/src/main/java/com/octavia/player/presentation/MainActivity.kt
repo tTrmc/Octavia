@@ -42,13 +42,16 @@ class MainActivity : ComponentActivity() {
 
         // Set up permission launcher
         permissionLauncher = PermissionUtils.createPermissionLauncher(this) { permissions ->
-            val allGranted = permissions.values.all { it }
-            permissionsGranted = allGranted
+            val mandatoryPermissions = PermissionUtils.getMandatoryPermissions()
+            val mandatoryGranted = mandatoryPermissions.all { permission ->
+                permissions[permission] ?: PermissionUtils.hasPermission(this, permission)
+            }
 
-            if (!allGranted) {
-                // Handle case where some permissions were denied
-                // For now, we'll just keep showing the permission screen
-                // In production, you might want to show different UI for partially granted permissions
+            permissionsGranted = mandatoryGranted
+
+            if (!mandatoryGranted) {
+                // Handle case where some mandatory permissions were denied
+                // For now, we'll keep showing the permission screen until essentials are granted
             }
         }
 
@@ -76,11 +79,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestPermissions() {
-        val requiredPermissions = PermissionUtils.getRequiredPermissions()
-        if (requiredPermissions.isNotEmpty()) {
-            permissionLauncher.launch(requiredPermissions)
+        val mandatory = PermissionUtils.getMandatoryPermissions().toSet()
+        val optional = PermissionUtils.getOptionalPermissions().filter { permission ->
+            !PermissionUtils.hasPermission(this, permission)
+        }
+
+        val toRequest = (mandatory + optional).filter { permission ->
+            !PermissionUtils.hasPermission(this, permission)
+        }
+
+        if (toRequest.isNotEmpty()) {
+            permissionLauncher.launch(toRequest.toTypedArray())
         } else {
-            // No permissions needed for this Android version
+            // No additional permissions needed for this Android version
             permissionsGranted = true
         }
     }

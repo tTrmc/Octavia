@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -61,7 +62,7 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
     private var hasAudioFocus = false
     private var wasPlayingBeforeFocusLoss = false
     // Safety switch to disable audio focus temporarily if issues persist
-    private val audioFocusEnabled = false
+    private val audioFocusEnabled = true
 
     // Use injected application scope for position updates to ensure proper lifecycle management
 
@@ -292,6 +293,9 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
     override fun stop() {
         exoPlayer.stop()
+        if (audioFocusEnabled) {
+            abandonAudioFocus()
+        }
         _currentTrack.value = null
         _playbackQueue.value = PlaybackQueue()
     }
@@ -481,14 +485,15 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
     override suspend fun restorePlaybackState() {
         try {
-            playbackStateDataStore.getPlaybackState().collect { savedState ->
-                if (savedState != null) {
-                    android.util.Log.d("MediaPlayback", "Restoring playback state: trackId=${savedState.trackId}, position=${savedState.position}")
-                    // Note: Actual restoration requires track lookup which happens in HomeViewModel
-                    // This method is a placeholder for future auto-restore functionality
-                } else {
-                    android.util.Log.d("MediaPlayback", "No saved playback state found")
-                }
+            val savedState = playbackStateDataStore.getPlaybackState().firstOrNull()
+            if (savedState != null) {
+                android.util.Log.d(
+                    "MediaPlayback",
+                    "Restoring playback state: trackId=${savedState.trackId}, position=${savedState.position}"
+                )
+                // Actual restoration happens in higher-level ViewModels once track data is available
+            } else {
+                android.util.Log.d("MediaPlayback", "No saved playback state found")
             }
         } catch (e: Exception) {
             android.util.Log.e("MediaPlayback", "Failed to restore playback state", e)
@@ -549,16 +554,21 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             exoPlayer.setMediaItems(mediaItems, startIndex, 0L)
             exoPlayer.prepare()
 
+            val shuffledOrder = if (tracks.size > 1) {
+                tracks.shuffled()
+            } else {
+                tracks
+            }
+
+            val isShuffleEnabled = exoPlayer.shuffleModeEnabled
+
             updatePlaybackQueue {
                 PlaybackQueue(
                     tracks = tracks,
                     currentIndex = startIndex,
                     originalOrder = tracks,
-                    shuffledOrder = if (tracks.size > 1) {
-                        // Only shuffle if not already shuffled to avoid recreating the same order
-                        currentQueue.shuffledOrder.ifEmpty { tracks.shuffled() }
-                    } else tracks,
-                    isShuffled = false
+                    shuffledOrder = shuffledOrder,
+                    isShuffled = isShuffleEnabled
                 )
             }
 

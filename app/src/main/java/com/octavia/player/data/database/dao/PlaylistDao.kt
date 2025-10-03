@@ -28,8 +28,9 @@ interface PlaylistDao {
 
     @Query(
         """
-        SELECT t.* FROM tracks t
-        INNER JOIN playlist_tracks pt ON t.id = pt.track_id
+        SELECT t.*
+        FROM playlist_tracks pt
+        JOIN tracks t ON t.id = pt.track_id
         WHERE pt.playlist_id = :playlistId
         ORDER BY pt.position ASC
     """

@@ -22,28 +22,22 @@ class MediaLibraryScanUseCase @Inject constructor(
     suspend fun scanLibrary(context: Context): Result<Int> {
         return MediaScanner.scanLibrary(context, extractArtworkInBackground = false)
             .mapCatching { tracks ->
-                if (tracks.isNotEmpty()) {
-                    trackRepository.insertTracks(tracks)
-                    buildAndInsertAlbums(tracks)
-                    buildAndInsertArtists(tracks)
-                    tracks.size
-                } else {
-                    0
-                }
+                trackRepository.upsertTracksPreservingUserData(tracks)
+                trackRepository.deleteTracksNotInPaths(tracks.map { it.filePath })
+                buildAndInsertAlbums(tracks)
+                buildAndInsertArtists(tracks)
+                tracks.size
             }
     }
 
     suspend fun scanLibraryWithArtwork(context: Context): Result<Int> {
         return MediaScanner.scanLibrary(context, extractArtworkInBackground = true)
             .mapCatching { tracks ->
-                if (tracks.isNotEmpty()) {
-                    trackRepository.insertTracks(tracks)
-                    buildAndInsertAlbums(tracks)
-                    buildAndInsertArtists(tracks)
-                    tracks.size
-                } else {
-                    0
-                }
+                trackRepository.upsertTracksPreservingUserData(tracks)
+                trackRepository.deleteTracksNotInPaths(tracks.map { it.filePath })
+                buildAndInsertAlbums(tracks)
+                buildAndInsertArtists(tracks)
+                tracks.size
             }
     }
 
@@ -51,6 +45,8 @@ class MediaLibraryScanUseCase @Inject constructor(
      * Build Album entities from scanned tracks and insert them into database
      */
     private suspend fun buildAndInsertAlbums(tracks: List<com.octavia.player.data.model.Track>) {
+        albumDao.deleteAllAlbums()
+
         // Group tracks by albumId (MediaStore album ID)
         val tracksByAlbum = tracks
             .filter { it.albumId != null } // Only tracks with album IDs
@@ -84,6 +80,8 @@ class MediaLibraryScanUseCase @Inject constructor(
      * Build Artist entities from scanned tracks and insert them into database
      */
     private suspend fun buildAndInsertArtists(tracks: List<com.octavia.player.data.model.Track>) {
+        artistDao.deleteAllArtists()
+
         // Group tracks by artistId (MediaStore artist ID)
         val tracksByArtist = tracks
             .filter { it.artistId != null } // Only tracks with artist IDs

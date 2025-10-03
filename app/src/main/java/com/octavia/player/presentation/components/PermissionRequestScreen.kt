@@ -44,7 +44,8 @@ fun PermissionRequestScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val missingPermissions = PermissionUtils.getMissingPermissions(context)
+    val missingMandatory = PermissionUtils.getMissingPermissions(context)
+    val missingOptional = PermissionUtils.getMissingOptionalPermissions(context)
 
     Column(
         modifier = modifier
@@ -84,10 +85,26 @@ fun PermissionRequestScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Permission Cards
-        missingPermissions.forEach { permission ->
+        // Permission Cards (mandatory first)
+        missingMandatory.forEach { permission ->
             PermissionCard(permission = permission)
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (missingOptional.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Optional permissions",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            missingOptional.forEach { permission ->
+                PermissionCard(permission = permission, isOptional = true)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -124,6 +141,7 @@ fun PermissionRequestScreen(
 @Composable
 private fun PermissionCard(
     permission: String,
+    isOptional: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val (icon, title) = when (permission) {
@@ -169,6 +187,15 @@ private fun PermissionCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium
                 )
+
+                if (isOptional) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Optional",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
