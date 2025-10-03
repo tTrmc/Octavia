@@ -96,6 +96,8 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val playbackPosition by viewModel.playbackPosition.collectAsState()
+    val playerState by viewModel.playerState.collectAsState()
     val pagerState = rememberPagerState(pageCount = { LibraryTab.entries.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -172,7 +174,7 @@ fun LibraryScreen(
                     MiniPlayer(
                         track = uiState.currentlyPlayingTrack,
                         isPlaying = uiState.isPlaying,
-                        progress = uiState.progress,
+                        progress = if (playerState.duration > 0) playbackPosition.toFloat() / playerState.duration else 0f,
                         onPlayPause = { viewModel.togglePlayPause() },
                         onNext = { viewModel.skipToNext() },
                         onPrevious = { viewModel.skipToPrevious() },
@@ -344,6 +346,18 @@ fun LibraryScreen(
                     LibraryTab.TRACKS -> {
                         var currentSort by remember { mutableStateOf(SortOption.NAME_ASC) }
 
+                        val filteredTracks = remember(uiState.tracks, searchQuery) {
+                            if (searchQuery.isNotEmpty()) {
+                                uiState.tracks.filter { track ->
+                                    track.displayTitle.contains(searchQuery, ignoreCase = true) ||
+                                        track.displayArtist.contains(searchQuery, ignoreCase = true) ||
+                                        track.displayAlbum.contains(searchQuery, ignoreCase = true)
+                                }
+                            } else {
+                                uiState.tracks
+                            }
+                        }
+
                         Column {
                             if (uiState.tracks.isNotEmpty()) {
                                 SortFilterBar(
@@ -353,22 +367,7 @@ fun LibraryScreen(
                             }
 
                             TracksTab(
-                                tracks = if (searchQuery.isNotEmpty()) {
-                                    uiState.tracks.filter { track ->
-                                        track.displayTitle.contains(
-                                            searchQuery,
-                                            ignoreCase = true
-                                        ) ||
-                                                track.displayArtist.contains(
-                                                    searchQuery,
-                                                    ignoreCase = true
-                                                ) ||
-                                                track.displayAlbum.contains(
-                                                    searchQuery,
-                                                    ignoreCase = true
-                                                )
-                                    }
-                                } else uiState.tracks,
+                                tracks = filteredTracks,
                                 isLoading = uiState.isLoading,
                                 error = uiState.error,
                                 currentlyPlayingTrack = uiState.currentlyPlayingTrack,
@@ -641,8 +640,7 @@ private fun TracksTab(
                             onClick = { onTrackClick(track) },
                             showQuality = true,
                             isPlaying = currentlyPlayingTrack?.id == track.id,
-                            onMoreClick = onMoreClick,
-                            modifier = Modifier.animateItem()
+                            onMoreClick = onMoreClick
                         )
                     }
                     

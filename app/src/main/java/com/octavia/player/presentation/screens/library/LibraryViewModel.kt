@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.octavia.player.data.model.Album
 import com.octavia.player.data.model.Artist
 import com.octavia.player.data.model.Playlist
+import com.octavia.player.data.model.PlayerState
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.MediaPlaybackRepository
 import com.octavia.player.domain.usecase.GetAlbumsUseCase
@@ -39,33 +40,46 @@ class LibraryViewModel @Inject constructor(
     private val playlistTrackManagementUseCase: PlaylistTrackManagementUseCase
 ) : AndroidViewModel(application) {
 
-    val uiState: StateFlow<LibraryUiState> = combine(
-        getTracksUseCase.getAllTracks(),
-        getAlbumsUseCase.getAllAlbums(),
-        getArtistsUseCase.getAllArtists(),
-        playlistManagementUseCase.getAllPlaylists(),
-        mediaPlaybackRepository.currentTrack,
-        mediaPlaybackRepository.playerState,
-        mediaPlaybackRepository.currentPosition
-    ) { flows ->
-        val tracks = flows[0] as List<Track>
-        val albums = flows[1] as List<Album>
-        val artists = flows[2] as List<Artist>
-        val playlists = flows[3] as List<Playlist>
-        val currentTrack = flows[4] as Track?
-        val playerState = flows[5] as com.octavia.player.data.model.PlayerState
-        val currentPosition = flows[6] as Long
+    private val tracksFlow = getTracksUseCase.getAllTracks()
+    private val albumsFlow = getAlbumsUseCase.getAllAlbums()
+    private val artistsFlow = getArtistsUseCase.getAllArtists()
+    private val playlistsFlow = playlistManagementUseCase.getAllPlaylists()
 
+    private val internalPlayerState: StateFlow<PlayerState> =
+        mediaPlaybackRepository.playerState.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = PlayerState()
+        )
+
+    val playbackPosition: StateFlow<Long> =
+        mediaPlaybackRepository.currentPosition.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 0L
+        )
+
+    private val libraryCollections = combine(
+        tracksFlow,
+        albumsFlow,
+        artistsFlow,
+        playlistsFlow
+    ) { tracks, albums, artists, playlists ->
+        LibraryCollections(tracks, albums, artists, playlists)
+    }
+
+    val uiState: StateFlow<LibraryUiState> = combine(
+        libraryCollections,
+        mediaPlaybackRepository.currentTrack,
+        internalPlayerState
+    ) { collections, currentTrack, playerState ->
         LibraryUiState(
-            tracks = tracks,
-            albums = albums,
-            artists = artists,
-            playlists = playlists,
+            tracks = collections.tracks,
+            albums = collections.albums,
+            artists = collections.artists,
+            playlists = collections.playlists,
             currentlyPlayingTrack = currentTrack,
             isPlaying = playerState.isPlaying,
-            currentPosition = currentPosition,
-            duration = playerState.duration,
-            progress = if (playerState.duration > 0) currentPosition.toFloat() / playerState.duration else 0f,
             isLoading = false
         )
     }.stateIn(
@@ -73,6 +87,8 @@ class LibraryViewModel @Inject constructor(
         started = SharingStarted.Eagerly,
         initialValue = LibraryUiState()
     )
+
+    val playerState: StateFlow<PlayerState> = internalPlayerState
 
     init {
         // Trigger initial scan if library is empty
@@ -217,9 +233,13 @@ data class LibraryUiState(
     val playlists: List<Playlist> = emptyList(),
     val currentlyPlayingTrack: Track? = null,
     val isPlaying: Boolean = false,
-    val currentPosition: Long = 0L,
-    val duration: Long = 0L,
-    val progress: Float = 0f,
     val isLoading: Boolean = true,
     val error: String? = null
+)
+
+private data class LibraryCollections(
+    val tracks: List<Track>,
+    val albums: List<Album>,
+    val artists: List<Artist>,
+    val playlists: List<Playlist>
 )
