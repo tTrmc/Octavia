@@ -3,6 +3,8 @@ package com.octavia.player.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.room.withTransaction
+import com.octavia.player.data.database.OctaviaDatabase
 import com.octavia.player.data.database.dao.TrackDao
 import com.octavia.player.data.model.Track
 import com.octavia.player.domain.repository.TrackRepository
@@ -16,11 +18,13 @@ import javax.inject.Singleton
  */
 @Singleton
 class TrackRepositoryImpl @Inject constructor(
-    private val trackDao: TrackDao
+    private val trackDao: TrackDao,
+    private val database: OctaviaDatabase
 ) : TrackRepository {
 
     companion object {
         private const val PAGE_SIZE = 50
+        private const val SQLITE_MAX_VARIABLES = 900
     }
 
     override fun getAllTracksPaged(): Flow<PagingData<Track>> {
@@ -74,55 +78,54 @@ class TrackRepositoryImpl @Inject constructor(
     override suspend fun upsertTracksPreservingUserData(tracks: List<Track>) {
         if (tracks.isEmpty()) return
 
-        val existingByPath = mutableMapOf<String, Track>()
+        val scanTimestamp = System.currentTimeMillis()
         val distinctPaths = tracks.map { it.filePath }.distinct()
 
-        // SQLite has a maximum variable count of 999; use a safe chunk size.
-        val chunkSize = 900
-        distinctPaths.chunked(chunkSize).forEach { chunk ->
-            trackDao.getTracksByPaths(chunk).forEach { existingTrack ->
-                existingByPath[existingTrack.filePath] = existingTrack
-            }
-        }
-
-        val scanTimestamp = System.currentTimeMillis()
-
-        tracks.forEach { scannedTrack ->
-            val existingTrack = existingByPath[scannedTrack.filePath]
-
-            if (existingTrack != null) {
-                val mergedTrack = scannedTrack.copy(
-                    id = existingTrack.id,
-                    fileHash = scannedTrack.fileHash ?: existingTrack.fileHash,
-                    albumArtist = scannedTrack.albumArtist ?: existingTrack.albumArtist,
-                    genre = scannedTrack.genre ?: existingTrack.genre,
-                    year = scannedTrack.year ?: existingTrack.year,
-                    trackNumber = scannedTrack.trackNumber ?: existingTrack.trackNumber,
-                    discNumber = scannedTrack.discNumber ?: existingTrack.discNumber,
-                    bitrateKbps = scannedTrack.bitrateKbps ?: existingTrack.bitrateKbps,
-                    sampleRateHz = scannedTrack.sampleRateHz ?: existingTrack.sampleRateHz,
-                    bitDepth = scannedTrack.bitDepth ?: existingTrack.bitDepth,
-                    channelCount = scannedTrack.channelCount ?: existingTrack.channelCount,
-                    codecName = scannedTrack.codecName ?: existingTrack.codecName,
-                    replayGainTrack = scannedTrack.replayGainTrack ?: existingTrack.replayGainTrack,
-                    replayGainAlbum = scannedTrack.replayGainAlbum ?: existingTrack.replayGainAlbum,
-                    replayGainPeak = scannedTrack.replayGainPeak ?: existingTrack.replayGainPeak,
-                    artworkPath = scannedTrack.artworkPath ?: existingTrack.artworkPath,
-                    albumId = scannedTrack.albumId ?: existingTrack.albumId,
-                    artistId = scannedTrack.artistId ?: existingTrack.artistId,
-                    genreId = scannedTrack.genreId ?: existingTrack.genreId,
-                    playCount = existingTrack.playCount,
-                    lastPlayed = existingTrack.lastPlayed,
-                    isFavorite = existingTrack.isFavorite,
-                    dateAdded = existingTrack.dateAdded,
-                    dateScanned = scanTimestamp
-                )
-
-                if (mergedTrack != existingTrack) {
-                    trackDao.updateTrack(mergedTrack)
+        database.withTransaction {
+            val existingByPath = mutableMapOf<String, Track>()
+            distinctPaths.chunked(SQLITE_MAX_VARIABLES).forEach { chunk ->
+                trackDao.getTracksByPaths(chunk).forEach { existingTrack ->
+                    existingByPath[existingTrack.filePath] = existingTrack
                 }
-            } else {
-                trackDao.insertTrack(scannedTrack.copy(dateScanned = scanTimestamp))
+            }
+
+            tracks.forEach { scannedTrack ->
+                val existingTrack = existingByPath[scannedTrack.filePath]
+
+                if (existingTrack != null) {
+                    val mergedTrack = scannedTrack.copy(
+                        id = existingTrack.id,
+                        fileHash = scannedTrack.fileHash ?: existingTrack.fileHash,
+                        albumArtist = scannedTrack.albumArtist ?: existingTrack.albumArtist,
+                        genre = scannedTrack.genre ?: existingTrack.genre,
+                        year = scannedTrack.year ?: existingTrack.year,
+                        trackNumber = scannedTrack.trackNumber ?: existingTrack.trackNumber,
+                        discNumber = scannedTrack.discNumber ?: existingTrack.discNumber,
+                        bitrateKbps = scannedTrack.bitrateKbps ?: existingTrack.bitrateKbps,
+                        sampleRateHz = scannedTrack.sampleRateHz ?: existingTrack.sampleRateHz,
+                        bitDepth = scannedTrack.bitDepth ?: existingTrack.bitDepth,
+                        channelCount = scannedTrack.channelCount ?: existingTrack.channelCount,
+                        codecName = scannedTrack.codecName ?: existingTrack.codecName,
+                        replayGainTrack = scannedTrack.replayGainTrack ?: existingTrack.replayGainTrack,
+                        replayGainAlbum = scannedTrack.replayGainAlbum ?: existingTrack.replayGainAlbum,
+                        replayGainPeak = scannedTrack.replayGainPeak ?: existingTrack.replayGainPeak,
+                        artworkPath = scannedTrack.artworkPath ?: existingTrack.artworkPath,
+                        albumId = scannedTrack.albumId ?: existingTrack.albumId,
+                        artistId = scannedTrack.artistId ?: existingTrack.artistId,
+                        genreId = scannedTrack.genreId ?: existingTrack.genreId,
+                        playCount = existingTrack.playCount,
+                        lastPlayed = existingTrack.lastPlayed,
+                        isFavorite = existingTrack.isFavorite,
+                        dateAdded = existingTrack.dateAdded,
+                        dateScanned = scanTimestamp
+                    )
+
+                    if (mergedTrack != existingTrack) {
+                        trackDao.updateTrack(mergedTrack)
+                    }
+                } else {
+                    trackDao.insertTrack(scannedTrack.copy(dateScanned = scanTimestamp))
+                }
             }
         }
     }
@@ -140,10 +143,29 @@ class TrackRepositoryImpl @Inject constructor(
     override suspend fun deleteTrackById(trackId: Long) = trackDao.deleteTrackById(trackId)
 
     override suspend fun deleteTracksNotInPaths(existingPaths: List<String>) {
-        if (existingPaths.isEmpty()) {
-            trackDao.deleteAllTracks()
-        } else {
-            trackDao.deleteTracksNotInPaths(existingPaths)
+        database.withTransaction {
+            if (existingPaths.isEmpty()) {
+                trackDao.deleteAllTracks()
+                return@withTransaction
+            }
+
+            val retainedPaths = existingPaths.toHashSet()
+            val pathsToDelete = trackDao.getAllFileInfo()
+                .asSequence()
+                .map { it.filePath }
+                .filter { it !in retainedPaths }
+                .toList()
+
+            pathsToDelete.chunked(SQLITE_MAX_VARIABLES).forEach { chunk ->
+                trackDao.deleteTracksByPaths(chunk)
+            }
+        }
+    }
+
+    override suspend fun getTracksByIds(ids: List<Long>): List<Track> {
+        if (ids.isEmpty()) return emptyList()
+        return ids.chunked(SQLITE_MAX_VARIABLES).flatMap { chunk ->
+            trackDao.getTracksByIds(chunk)
         }
     }
 

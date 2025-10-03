@@ -55,6 +55,12 @@ interface AlbumDao {
     @Query("DELETE FROM albums")
     suspend fun deleteAllAlbums()
 
+    @Query("SELECT id FROM albums")
+    suspend fun getAllAlbumIds(): List<Long>
+
+    @Query("DELETE FROM albums WHERE id IN (:albumIds)")
+    suspend fun deleteAlbumsByIds(albumIds: List<Long>)
+
     @Query("SELECT COUNT(*) FROM albums")
     suspend fun getAlbumCount(): Int
 

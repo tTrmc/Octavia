@@ -64,6 +64,9 @@ interface PlaylistDao {
     @Query("SELECT MAX(position) FROM playlist_tracks WHERE playlist_id = :playlistId")
     suspend fun getLastPositionInPlaylist(playlistId: Long): Int?
 
+    @Query("SELECT track_id FROM playlist_tracks WHERE playlist_id = :playlistId")
+    suspend fun getPlaylistTrackIds(playlistId: Long): List<Long>
+
     @Query("SELECT COUNT(*) FROM playlists")
     suspend fun getPlaylistCount(): Int
 }

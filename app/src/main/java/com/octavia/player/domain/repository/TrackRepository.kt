@@ -41,6 +41,7 @@ interface TrackRepository {
 
     // Upsert operations
     suspend fun upsertTracksPreservingUserData(tracks: List<Track>)
+    suspend fun getTracksByIds(ids: List<Long>): List<Track>
     
     // Statistics
     suspend fun incrementPlayCount(trackId: Long)

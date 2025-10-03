@@ -49,6 +49,12 @@ interface ArtistDao {
     @Query("DELETE FROM artists")
     suspend fun deleteAllArtists()
 
+    @Query("SELECT id FROM artists")
+    suspend fun getAllArtistIds(): List<Long>
+
+    @Query("DELETE FROM artists WHERE id IN (:artistIds)")
+    suspend fun deleteArtistsByIds(artistIds: List<Long>)
+
     @Query("SELECT COUNT(*) FROM artists")
     suspend fun getArtistCount(): Int
 }

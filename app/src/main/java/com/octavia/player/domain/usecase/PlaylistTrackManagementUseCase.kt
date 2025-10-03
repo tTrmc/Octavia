@@ -51,8 +51,7 @@ class PlaylistTrackManagementUseCase @Inject constructor(
             ?: return Result.failure(IllegalArgumentException("Playlist not found"))
 
         // Filter out tracks that are already in the playlist
-        val existingTracks = playlistRepository.getPlaylistTracks(playlistId).first()
-        val existingTrackIds = existingTracks.map { it.id }.toSet()
+        val existingTrackIds = playlistRepository.getPlaylistTrackIds(playlistId).toSet()
         val newTrackIds = trackIds.filter { it !in existingTrackIds }
 
         if (newTrackIds.isEmpty()) {
@@ -61,9 +60,8 @@ class PlaylistTrackManagementUseCase @Inject constructor(
         }
 
         // Verify all tracks exist
-        val validTrackIds = newTrackIds.filter { trackId ->
-            trackRepository.getTrackById(trackId) != null
-        }
+        val validTracks = trackRepository.getTracksByIds(newTrackIds)
+        val validTrackIds = validTracks.map { it.id }
 
         if (validTrackIds.isEmpty()) {
             return Result.failure(IllegalArgumentException("No valid tracks to add"))

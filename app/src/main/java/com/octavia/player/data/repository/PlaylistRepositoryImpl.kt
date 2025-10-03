@@ -21,6 +21,10 @@ class PlaylistRepositoryImpl @Inject constructor(
     private val trackDao: TrackDao
 ) : PlaylistRepository {
 
+    companion object {
+        private const val SQLITE_MAX_VARIABLES = 900
+    }
+
     override fun getAllPlaylists(): Flow<List<Playlist>> {
         return playlistDao.getAllPlaylistsFlow()
     }
@@ -31,6 +35,10 @@ class PlaylistRepositoryImpl @Inject constructor(
 
     override fun getPlaylistTracks(playlistId: Long): Flow<List<Track>> {
         return playlistDao.getPlaylistTracks(playlistId)
+    }
+
+    override suspend fun getPlaylistTrackIds(playlistId: Long): List<Long> {
+        return playlistDao.getPlaylistTrackIds(playlistId)
     }
 
     override fun searchPlaylists(query: String): Flow<List<Playlist>> {
@@ -124,8 +132,15 @@ class PlaylistRepositoryImpl @Inject constructor(
         return try {
             var nextPosition = (playlistDao.getLastPositionInPlaylist(playlistId) ?: -1) + 1
 
+            val trackMap = mutableMapOf<Long, Track>()
+            trackIds.chunked(SQLITE_MAX_VARIABLES).forEach { chunk ->
+                trackDao.getTracksByIds(chunk).forEach { track ->
+                    trackMap[track.id] = track
+                }
+            }
+
             val playlistTracks = trackIds.mapNotNull { trackId ->
-                val track = trackDao.getTrackById(trackId)
+                val track = trackMap[trackId]
                 if (track != null) {
                     PlaylistTrack(
                         playlistId = playlistId,

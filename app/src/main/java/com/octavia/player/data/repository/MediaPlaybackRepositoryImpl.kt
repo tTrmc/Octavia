@@ -2,6 +2,7 @@ package com.octavia.player.data.repository
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -66,82 +67,50 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
 
     // Use injected application scope for position updates to ensure proper lifecycle management
 
-    // Position updates flow - lifecycle-aware and event-driven with smart intervals
+    // Position updates flow - lifecycle-aware and throttled to avoid hammering the main thread
     override val currentPosition: Flow<Long> = callbackFlow {
         android.util.Log.d("MediaPlayback", "Position flow started")
-        var isActive = true
-        var handler: android.os.Handler? = null
-
-        val updatePosition = {
-            if (isActive) {
-                val position = exoPlayer.currentPosition
-                android.util.Log.v("MediaPlayback", "Position update: $position")
-                trySend(position)
-            }
-        }
-
-        // Create the position update runnable once - it reschedules itself
-        val positionUpdateRunnable = object : Runnable {
-            override fun run() {
-                if (!isActive) return
-
-                // Update current position
-                updatePosition()
-
-                // Smart update intervals: fast when playing, slower when paused
-                val updateInterval = if (exoPlayer.isPlaying) {
-                    100L // Update every 100ms when playing for smooth progress
-                } else {
-                    1000L // Update every 1 second when paused for position sync
-                }
-
-                // Reschedule next update
-                handler?.postDelayed(this, updateInterval)
-            }
-        }
+        var lastEmissionTime = 0L
 
         val listener = object : Player.Listener {
+            private fun emitPosition(force: Boolean = false) {
+                val now = SystemClock.elapsedRealtime()
+                val minimumInterval = if (exoPlayer.isPlaying) 250L else 1000L
+
+                if (force || now - lastEmissionTime >= minimumInterval) {
+                    lastEmissionTime = now
+                    trySend(exoPlayer.currentPosition)
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 android.util.Log.d("MediaPlayback", "Playing state changed: $isPlaying")
-                updatePosition() // Immediate update on state change
-
-                // Restart updates with new interval based on playing state
-                handler?.removeCallbacks(positionUpdateRunnable)
-                handler?.post(positionUpdateRunnable)
+                emitPosition(force = true)
             }
 
             override fun onPlaybackStateChanged(state: Int) {
                 android.util.Log.d("MediaPlayback", "Playback state changed: $state")
-                updatePosition() // Update position on state changes
+                emitPosition(force = true)
+            }
 
-                when (state) {
-                    Player.STATE_ENDED, Player.STATE_IDLE -> {
-                        // Stop updates when playback ends or goes idle
-                        handler?.removeCallbacks(positionUpdateRunnable)
-                    }
-                    else -> {
-                        // Restart updates for all other states
-                        handler?.removeCallbacks(positionUpdateRunnable)
-                        handler?.post(positionUpdateRunnable)
-                    }
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+                    events.contains(Player.EVENT_TIMELINE_CHANGED) ||
+                    events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)
+                ) {
+                    emitPosition(force = true)
+                } else {
+                    emitPosition()
                 }
             }
         }
 
-        // Initialize handler and add listener
-        handler = android.os.Handler(android.os.Looper.getMainLooper())
         exoPlayer.addListener(listener)
-
-        // Send initial position and start continuous updates
-        updatePosition()
-        handler.post(positionUpdateRunnable)
+        trySend(exoPlayer.currentPosition)
 
         awaitClose {
             android.util.Log.d("MediaPlayback", "Position flow closed")
-            isActive = false
-            handler?.removeCallbacks(positionUpdateRunnable)
             exoPlayer.removeListener(listener)
-            handler = null
         }
     }.stateIn(
         scope = applicationScope,
@@ -554,13 +523,12 @@ class MediaPlaybackRepositoryImpl @Inject constructor(
             exoPlayer.setMediaItems(mediaItems, startIndex, 0L)
             exoPlayer.prepare()
 
-            val shuffledOrder = if (tracks.size > 1) {
+            val isShuffleEnabled = exoPlayer.shuffleModeEnabled
+            val shuffledOrder = if (isShuffleEnabled && tracks.size > 1) {
                 tracks.shuffled()
             } else {
                 tracks
             }
-
-            val isShuffleEnabled = exoPlayer.shuffleModeEnabled
 
             updatePlaybackQueue {
                 PlaybackQueue(

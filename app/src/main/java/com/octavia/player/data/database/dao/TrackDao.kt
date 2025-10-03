@@ -91,8 +91,14 @@ interface TrackDao {
     @Query("SELECT * FROM tracks WHERE file_path IN (:paths)")
     suspend fun getTracksByPaths(paths: List<String>): List<Track>
 
+    @Query("SELECT * FROM tracks WHERE id IN (:ids)")
+    suspend fun getTracksByIds(ids: List<Long>): List<Track>
+
     @Query("UPDATE tracks SET play_count = play_count + 1, last_played = :timestamp WHERE id = :trackId")
     suspend fun incrementPlayCount(trackId: Long, timestamp: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM tracks WHERE file_path IN (:paths)")
+    suspend fun deleteTracksByPaths(paths: List<String>)
 
     @Query("UPDATE tracks SET is_favorite = :isFavorite WHERE id = :trackId")
     suspend fun updateFavoriteStatus(trackId: Long, isFavorite: Boolean)

@@ -18,6 +18,9 @@ class MediaLibraryScanUseCase @Inject constructor(
     private val albumDao: AlbumDao,
     private val artistDao: ArtistDao
 ) {
+    companion object {
+        private const val SQLITE_MAX_VARIABLES = 900
+    }
     
     suspend fun scanLibrary(context: Context): Result<Int> {
         return MediaScanner.scanLibrary(context, extractArtworkInBackground = false)
@@ -45,11 +48,9 @@ class MediaLibraryScanUseCase @Inject constructor(
      * Build Album entities from scanned tracks and insert them into database
      */
     private suspend fun buildAndInsertAlbums(tracks: List<com.octavia.player.data.model.Track>) {
-        albumDao.deleteAllAlbums()
-
         // Group tracks by albumId (MediaStore album ID)
-        val tracksByAlbum = tracks
-            .filter { it.albumId != null } // Only tracks with album IDs
+        val tracksByAlbum = tracks.asSequence()
+            .filter { it.albumId != null }
             .groupBy { it.albumId!! }
 
         // Build Album entity for each group
@@ -69,10 +70,20 @@ class MediaLibraryScanUseCase @Inject constructor(
             )
         }
 
-        // Insert all albums
-        if (albums.isNotEmpty()) {
-            albumDao.insertAlbums(albums)
-            android.util.Log.d("MediaLibraryScan", "Built and inserted ${albums.size} albums from ${tracks.size} tracks")
+        if (albums.isEmpty()) {
+            albumDao.deleteAllAlbums()
+            return
+        }
+
+        albumDao.insertAlbums(albums)
+        android.util.Log.d("MediaLibraryScan", "Built and inserted ${albums.size} albums from ${tracks.size} tracks")
+
+        val newAlbumIds = albums.map { it.id }.toHashSet()
+        val existingAlbumIds = albumDao.getAllAlbumIds()
+        val albumIdsToDelete = existingAlbumIds.filter { it !in newAlbumIds }
+
+        albumIdsToDelete.chunked(SQLITE_MAX_VARIABLES).forEach { chunk ->
+            albumDao.deleteAlbumsByIds(chunk)
         }
     }
 
@@ -80,11 +91,9 @@ class MediaLibraryScanUseCase @Inject constructor(
      * Build Artist entities from scanned tracks and insert them into database
      */
     private suspend fun buildAndInsertArtists(tracks: List<com.octavia.player.data.model.Track>) {
-        artistDao.deleteAllArtists()
-
         // Group tracks by artistId (MediaStore artist ID)
-        val tracksByArtist = tracks
-            .filter { it.artistId != null } // Only tracks with artist IDs
+        val tracksByArtist = tracks.asSequence()
+            .filter { it.artistId != null }
             .groupBy { it.artistId!! }
 
         // Build Artist entity for each group
@@ -102,10 +111,20 @@ class MediaLibraryScanUseCase @Inject constructor(
             )
         }
 
-        // Insert all artists
-        if (artists.isNotEmpty()) {
-            artistDao.insertArtists(artists)
-            android.util.Log.d("MediaLibraryScan", "Built and inserted ${artists.size} artists from ${tracks.size} tracks")
+        if (artists.isEmpty()) {
+            artistDao.deleteAllArtists()
+            return
+        }
+
+        artistDao.insertArtists(artists)
+        android.util.Log.d("MediaLibraryScan", "Built and inserted ${artists.size} artists from ${tracks.size} tracks")
+
+        val newArtistIds = artists.map { it.id }.toHashSet()
+        val existingArtistIds = artistDao.getAllArtistIds()
+        val artistIdsToDelete = existingArtistIds.filter { it !in newArtistIds }
+
+        artistIdsToDelete.chunked(SQLITE_MAX_VARIABLES).forEach { chunk ->
+            artistDao.deleteArtistsByIds(chunk)
         }
     }
 

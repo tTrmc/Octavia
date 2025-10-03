@@ -47,9 +47,22 @@ class HomeViewModel @Inject constructor(
         val savedState = flows[6] as com.octavia.player.data.datastore.SavedPlaybackState?
 
         // Cache expensive calculations
-        val albumCount = tracks.groupBy { it.album ?: "Unknown Album" }.keys.size
-        val artistCount = tracks.groupBy { it.artist ?: "Unknown Artist" }.keys.size
-        val totalDurationMs = tracks.sumOf { it.durationMs }
+        val albumNames = LinkedHashSet<String>()
+        val artistNames = LinkedHashSet<String>()
+        var totalDurationMs = 0L
+
+        tracks.forEach { track ->
+            val albumName = track.album?.takeIf { it.isNotBlank() } ?: "Unknown Album"
+            albumNames += albumName
+
+            val artistName = track.artist?.takeIf { it.isNotBlank() } ?: "Unknown Artist"
+            artistNames += artistName
+
+            totalDurationMs += track.durationMs
+        }
+
+        val albumCount = albumNames.size
+        val artistCount = artistNames.size
 
         // Find last played track from saved state
         val lastPlayedTrack = savedState?.let { state ->

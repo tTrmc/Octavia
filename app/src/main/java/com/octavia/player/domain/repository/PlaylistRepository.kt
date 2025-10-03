@@ -28,6 +28,11 @@ interface PlaylistRepository {
     fun getPlaylistTracks(playlistId: Long): Flow<List<Track>>
 
     /**
+     * Get track IDs in a playlist without loading full track entities
+     */
+    suspend fun getPlaylistTrackIds(playlistId: Long): List<Long>
+
+    /**
      * Search playlists by name
      */
     fun searchPlaylists(query: String): Flow<List<Playlist>>
